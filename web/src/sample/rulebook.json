@@ -1,0 +1,6 @@
+[
+  { "version": 2, "status": "active", "rules": [{ "type": "missing_coverage", "instruction": "Check every endorsement on file against the estimate before finalizing." }],
+    "provenance": { "scoreBefore": "2/3", "scoreAfter": "3/3", "decision": "promoted", "reason": "Caught the missed code-upgrade endorsement without losing any prior finding, so the rule was kept." } },
+  { "version": 1, "status": "inactive", "rules": [{ "type": "unpaid_ale", "instruction": "Compare ALE paid against ALE promised." }, { "type": "labor_depreciation", "instruction": "Flag depreciation applied to labor." }],
+    "provenance": { "scoreBefore": "0/3", "scoreAfter": "2/3", "decision": "promoted", "reason": "Initial rulebook." } }
+]

@@ -1,0 +1,26 @@
+{
+  "header": { "family": "Maria Alvarez", "lossType": "kitchen fire", "insurer": "Harbor Mutual", "day": 108 },
+  "totals": { "paid": 61200, "owed": 99600, "recoverable": 38400 },
+  "timeline": [
+    { "row": "policy", "label": "Policy renewed · code-upgrade endorsement", "validFrom": "2026-04-01", "validTo": "2027-04-01", "superseded": false },
+    { "row": "estimate", "label": "Estimate v1", "validFrom": "2026-06-10", "validTo": "2026-07-18", "superseded": true },
+    { "row": "estimate", "label": "Estimate v2", "validFrom": "2026-07-18", "validTo": "2026-09-25", "superseded": true },
+    { "row": "estimate", "label": "Estimate v3", "validFrom": "2026-09-25", "validTo": "2026-09-30", "superseded": false },
+    { "row": "ale_promised", "label": "ALE promised through month 12", "validFrom": "2026-05-01", "validTo": "2027-04-30", "superseded": false },
+    { "row": "ale_paid", "label": "ALE paid monthly, cut off after month 6", "validFrom": "2026-05-01", "validTo": "2026-10-31", "superseded": false }
+  ],
+  "findings": [
+    { "type": "missing_coverage", "title": "Code-upgrade coverage omitted", "detail": "The renewed policy includes a code-upgrade endorsement, but estimate v2 was written without it.", "amount": 18700,
+      "evidence": [{ "filename": "policy_renewal_2026.pdf", "quote": "Ordinance or law: code upgrade endorsement, limit $25,000." }], "decisionId": "dec_v2", "ruleVersion": 2 },
+    { "type": "unpaid_ale", "title": "Additional living expenses cut off early", "detail": "ALE was promised through month 12 but payments stopped after month 6.", "amount": 8400,
+      "evidence": [{ "filename": "ale_letter.pdf", "quote": "We will cover temporary housing for up to twelve months." }], "decisionId": null, "ruleVersion": 1 },
+    { "type": "labor_depreciation", "title": "Labor depreciated on 41 lines", "detail": "Labor was depreciated on 41 line items, which is not permitted under the policy terms.", "amount": 11300,
+      "evidence": [{ "filename": "estimate_v3.pdf", "quote": "Depreciation applied to labor: lines 12–52." }], "decisionId": null, "ruleVersion": 1 }
+  ],
+  "latestRun": { "id": "run_17", "status": "running", "rulebookVersion": 2, "steps": [
+    { "tool": "read_document", "summary": "Read estimate_v3.pdf", "at": "2026-09-26T09:14:02Z" },
+    { "tool": "compare_versions", "summary": "Compared v3 against v2", "at": "2026-09-26T09:14:05Z" },
+    { "tool": "search_policy", "summary": "Found code-upgrade endorsement", "at": "2026-09-26T09:14:08Z" },
+    { "tool": "record_finding", "summary": "Recorded missing_coverage $18,700", "at": "2026-09-26T09:14:11Z" }
+  ] }
+}
