@@ -59,3 +59,4 @@ input[type=email],input[type=password] { padding:9px 10px; border:1px solid var(
 .footer { font-size:13px; color:var(--muted); border-top:1px solid var(--line); padding-top:12px; margin:0; }
 @media (max-width:900px) { .grid { grid-template-columns:1fr; } }
 .rname { font-size:12px; text-transform:capitalize; margin-bottom:2px; }
+.resolved { margin-top:8px; } .finding.done { opacity:.6; background:#FAF9F6; } .finding.done .amt { color:var(--muted); text-decoration:line-through; }

@@ -158,6 +158,7 @@ function Workspace() {
   const [replayId, setReplayId] = useState(null)
   const [scoreOpen, setScoreOpen] = useState(false)
   const [uploadMsg, setUploadMsg] = useState('')
+  const [showResolved, setShowResolved] = useState(false)
 
   const onFile = async (e) => {
     const f = e.target.files[0]
@@ -172,6 +173,7 @@ function Workspace() {
   if (!w) return <div className="center">{banner || <p className="muted">Loading…</p>}</div>
 
   const { header, totals, timeline, findings, latestRun } = w
+  const resolved = w.resolvedFindings || []
   const steps = [...(latestRun?.steps || []), ...liveSteps]
   const codeFinding = findings.find((f) => f.decisionId)
   const { latest, added, before, after } = bars(rulebook)
@@ -213,6 +215,20 @@ function Workspace() {
                 {f.ruleVersion > 1 && <span className="tag">caught by a new rule</span>}
               </div>
             ))}
+            {resolved.length > 0 && (
+              <div className="resolved">
+                <button className="link" onClick={() => setShowResolved(!showResolved)}>
+                  {showResolved ? 'Hide' : 'Show'} resolved ({resolved.length})
+                </button>
+                {showResolved && resolved.map((f, i) => (
+                  <div key={i} className="card finding done">
+                    <div className="fhead"><b>{f.title}</b><span className="mono amt">{money(f.amount)}</span></div>
+                    <p>{f.detail}</p>
+                    <span className="muted small">fixed in <span className="mono">{f.resolvedByFilename}</span></span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </section>
         <aside className="right">

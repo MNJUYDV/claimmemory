@@ -1,10 +1,10 @@
-import { USE_SAMPLE_DATA, API_BASE } from './config.js'
+import { USE_SAMPLE_DATA, API_BASE_URL } from './config.js'
 import sampleWorkspace from './sample/workspace.json'
 import sampleReplay from './sample/replay.json'
 import sampleRulebook from './sample/rulebook.json'
 
 async function get(path) {
-  const res = await fetch(API_BASE + path)
+  const res = await fetch(API_BASE_URL + path)
   if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
   return res.json()
 }
@@ -16,7 +16,7 @@ export const fetchReplay = (decisionId) => (USE_SAMPLE_DATA ? Promise.resolve(sa
 export async function uploadDocument(id, file) {
   const body = new FormData()
   body.append('file', file)
-  const res = await fetch(`${API_BASE}/api/claims/${id}/documents`, { method: 'POST', body })
+  const res = await fetch(`${API_BASE_URL}/api/claims/${id}/documents`, { method: 'POST', body })
   if (!res.ok) throw new Error(`Upload failed: ${res.status}`)
   return res.json().catch(() => ({}))
 }

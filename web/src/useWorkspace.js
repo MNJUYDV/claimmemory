@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { USE_SAMPLE_DATA, API_BASE } from './config.js'
+import { USE_SAMPLE_DATA, API_BASE_URL } from './config.js'
 import { fetchWorkspace, fetchRulebook } from './api.js'
 
 export function useWorkspace(claimId) {
@@ -26,14 +26,11 @@ export function useWorkspace(claimId) {
     if (!USE_SAMPLE_DATA) {
       const startPolling = () => { if (!poll) poll = setInterval(refetch, 3000) }
       try {
-        es = new EventSource(`${API_BASE}/api/claims/${claimId}/events`)
-        es.onmessage = (m) => {
-          let ev = {}
-          try { ev = JSON.parse(m.data) } catch { /* non-JSON keepalive */ }
-          const t = String(ev.type || '')
-          if (ev.tool && ev.summary) setLiveSteps((s) => [...s, { tool: ev.tool, summary: ev.summary, at: ev.at || new Date().toISOString() }])
-          if (/finding|totals|run/.test(t)) refetch()
-        }
+        es = new EventSource(`${API_BASE_URL}/api/claims/${claimId}/events`)
+        // the server sends named events (event: <type>), which onmessage never sees
+        const on = (type, fn) => es.addEventListener(type, (m) => { let ev = {}; try { ev = JSON.parse(m.data) } catch { /* ignore */ } fn(ev) })
+        on('tool_call', (ev) => setLiveSteps((s) => [...s, { tool: ev.name, summary: ev.summary, at: ev.ts || new Date().toISOString() }]))
+        for (const t of ['run_started', 'run_finished', 'finding_created', 'finding_updated', 'finding_resolved', 'totals_changed']) on(t, refetch)
         es.onerror = () => { es.close(); startPolling() }
       } catch { startPolling() }
     }
