@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+pymongo
+voyageai
+anthropic
+python-dotenv
+pydantic
+pytest
+httpx
+certifi
