@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { USE_SAMPLE_DATA, CLAIMS } from './config.js'
+import { USE_SAMPLE_DATA, CLAIM_ID } from './config.js'
 import { useWorkspace } from './useWorkspace.js'
 import { fetchReplay, uploadDocument } from './api.js'
 import { money, days, fmtDate, parseScore } from './format.js'
@@ -188,13 +188,13 @@ function Activity({ steps }) {
     <div className="strip">
       <div className="strip-line">
         <span className="dot" />
-        {last ? <>{last.claimId && <span className="chip mono">{last.claimId}</span>}<span className="mono tool">{last.tool}</span><span className="grow">{last.summary}</span></> : <span className="grow muted">Idle</span>}
+        {last ? <><span className="mono tool">{last.tool}</span><span className="grow">{last.summary}</span></> : <span className="grow muted">Idle</span>}
         <button className="link" onClick={() => setOpen(!open)}>{open ? 'Hide activity' : 'View activity'}</button>
       </div>
       {open && (
         <ul className="panel">
           {steps.slice(-20).reverse().map((s, i) => (
-            <li key={i}>{s.claimId && <span className="chip mono">{s.claimId}</span>}<span className="mono tool">{s.tool}</span><span className="grow">{s.summary}</span><span className="muted mono">{new Date(s.at).toLocaleTimeString()}</span></li>
+            <li key={i}><span className="mono tool">{s.tool}</span><span className="grow">{s.summary}</span><span className="muted mono">{new Date(s.at).toLocaleTimeString()}</span></li>
           ))}
         </ul>
       )}
@@ -202,8 +202,8 @@ function Activity({ steps }) {
   )
 }
 
-function Workspace({ claimId, onClaim }) {
-  const { workspace: w, rulebook, error, refetch, liveSteps, ruleEvents } = useWorkspace(claimId)
+function Workspace() {
+  const { workspace: w, rulebook, error, refetch, liveSteps } = useWorkspace(CLAIM_ID)
   const [replayId, setReplayId] = useState(null)
   const [scoreOpen, setScoreOpen] = useState(false)
   const [uploadMsg, setUploadMsg] = useState('')
@@ -213,7 +213,7 @@ function Workspace({ claimId, onClaim }) {
     const f = e.target.files[0]
     e.target.value = ''
     if (!f) return
-    try { setUploadMsg('Uploading…'); await uploadDocument(claimId, f); setUploadMsg('Uploaded'); refetch() } catch (err) { setUploadMsg(err.message) }
+    try { setUploadMsg('Uploading…'); await uploadDocument(CLAIM_ID, f); setUploadMsg('Uploaded'); refetch() } catch (err) { setUploadMsg(err.message) }
   }
 
   const banner = error && (
@@ -223,7 +223,7 @@ function Workspace({ claimId, onClaim }) {
 
   const { header, totals, timeline, findings, latestRun } = w
   const resolved = w.resolvedFindings || []
-  const steps = [...(latestRun?.steps || []), ...liveSteps, ...ruleEvents].sort((a, b) => Date.parse(a.at) - Date.parse(b.at))
+  const steps = [...(latestRun?.steps || []), ...liveSteps]
   const codeFinding = findings.find((f) => f.decisionId)
   const { latest, added, before, after } = bars(rulebook)
 
@@ -232,9 +232,7 @@ function Workspace({ claimId, onClaim }) {
       <header className="top">
         <b className="brand">ClaimMemory</b>
         <div className="top-right">
-          <select className="claim-select" value={claimId} onChange={(e) => onClaim(e.target.value)} disabled={USE_SAMPLE_DATA} aria-label="Claim">
-            {CLAIMS.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
-          </select><span>{header.insurer}</span><span>Day {header.day}</span>
+          <span className="mono">{CLAIM_ID}</span><span>{header.insurer}</span><span>Day {header.day}</span>
           <label className={'btn' + (USE_SAMPLE_DATA ? ' disabled' : '')} title={USE_SAMPLE_DATA ? 'Upload is disabled while using sample data' : 'Upload a document'}>
             Upload document
             <input type="file" hidden disabled={USE_SAMPLE_DATA} onChange={onFile} />
@@ -326,6 +324,5 @@ function FindingCard({ f, done, onOpen }) {
 
 export default function App() {
   const [authed, setAuthed] = useState(false)
-  const [claimId, setClaimId] = useState(CLAIMS[0].id)
-  return authed ? <Workspace claimId={claimId} onClaim={setClaimId} /> : <Login onOk={() => setAuthed(true)} />
+  return authed ? <Workspace /> : <Login onOk={() => setAuthed(true)} />
 }

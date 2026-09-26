@@ -56,8 +56,8 @@
   {
     "claimId": "HO-48213",
     "filename": "estimate_v3.txt",
-    "receivedAt": "2026-09-26T20:31:25+00:00",
-    "hold": false
+    "receivedAt": "2026-09-25T13:30:00-05:00",
+    "hold": true
   },
   {
     "claimId": "PK-20719",
@@ -111,12 +111,6 @@
     "claimId": "PK-20719",
     "filename": "payments.json",
     "receivedAt": "2026-05-18T10:00:00-06:00",
-    "hold": false
-  },
-  {
-    "claimId": "PK-20719",
-    "filename": "settlement_letter.txt",
-    "receivedAt": "2026-09-26T20:28:18+00:00",
     "hold": false
   }
 ]

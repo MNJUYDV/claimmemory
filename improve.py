@@ -198,23 +198,3 @@ def improve_rulebook(training_claim_id: str, run_id: str, *, proposer=None, clie
     return {"decision": decided["decision"], "reason": reason, "proposal": rule, "candidateVersion": version,
             "candidateRunId": result.runId, "version": version if promote else base_version,
             "scoreBefore": summarize(before), "scoreAfter": summarize(after)}
-
-
-def improve_from_settlement(claim_id: str, **kwargs) -> dict:
-    """A settlement letter is the claim's real outcome. Score the latest review run against the labels,
-    then try to learn a rule from what it missed. Runs on the rulebook version active now."""
-    if not db.get_collection("labels").find_one({"claimId": claim_id}):
-        return {"decision": "skipped", "reason": "claim has no labeled outcomes"}
-    active = rulebook.active_version_for_claim(claim_id)
-    run = db.get_collection("agent_runs").find_one(
-        {"claimId": claim_id, "status": "completed", "rulebookVersion": active}, sort=[("startedAt", -1)])
-    if run:
-        run_id = run["runId"]
-    else:
-        result = agent.run_agent(claim_id)
-        if result.status != "completed":
-            raise RuntimeError(f"review ended {result.status}: {result.error}")
-        run_id = result.runId
-    _emit(run_id, claim_id, "improvement_started", trigger="settlement", rulebookVersion=active)
-    scorer.score_run(run_id)
-    return improve_rulebook(claim_id, run_id, **kwargs)

@@ -30,8 +30,6 @@ def doc_type(filename: str) -> str:
         return "notice"
     if filename == "payments.json":
         return "payments"
-    if filename.startswith("settlement"):
-        return "settlement"
     return "other"
 
 
