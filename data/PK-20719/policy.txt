@@ -3,6 +3,7 @@ Policy number: HM-HO-0059172
 Insured: Daniel and Grace Park
 Property: 1184 Marlow Terrace, Alderbrook, ST 00000
 Claim: PK-20719
+Effective from: 2024-12-01
 
 SECTION 1. DEFINITIONS
 1.1 "Covered loss" means direct physical loss by fire to the insured dwelling.

@@ -70,7 +70,11 @@ class Estimate:
 
 
 def parse_estimate(path) -> Estimate:
-    lines = Path(path).read_text().splitlines()
+    return parse_estimate_text(Path(path).read_text())
+
+
+def parse_estimate_text(text: str) -> Estimate:
+    lines = text.splitlines()
     header = {}
     for line in lines:
         if line.strip() == " | ".join(ESTIMATE_COLUMNS):
@@ -93,7 +97,11 @@ class CodeUpgrade:
 
 
 def parse_code_upgrades(bid_path) -> list:
-    lines = Path(bid_path).read_text().splitlines()
+    return parse_code_upgrades_text(Path(bid_path).read_text())
+
+
+def parse_code_upgrades_text(text: str) -> list:
+    lines = text.splitlines()
     at = next((i for i, l in enumerate(lines) if l.strip() == "Code upgrade items"), None)
     if at is None:
         raise ValueError("no 'Code upgrade items' section")
@@ -112,19 +120,22 @@ class AleTerms:
         return (self.promised_months - self.cutoff_months) * self.monthly_rate
 
 
+def parse_ale_text(promise_text: str, notice_text: str) -> AleTerms:
+    promise = re.search(r"through month (\d+) at \$([\d,]+) per month", promise_text)
+    if not promise:
+        raise ValueError("no ALE promise ('through month N at $R per month') in the promise document")
+    notice = re.search(r"ALE payments end after month (\d+)", notice_text)
+    if not notice:
+        raise ValueError("no ALE cutoff ('ALE payments end after month N') in the notice document")
+    return AleTerms(int(promise.group(1)), int(notice.group(1)), parse_money(promise.group(2)))
+
+
 def parse_ale(claim_dir) -> AleTerms:
     claim_dir = Path(claim_dir)
-    promise = None
     for email in sorted(claim_dir.glob("adjuster_email_*.txt")):
-        promise = re.search(r"through month (\d+) at \$([\d,]+) per month", email.read_text())
-        if promise:
-            break
-    if not promise:
-        raise ValueError("no ALE promise found in adjuster emails")
-    notice = re.search(r"ALE payments end after month (\d+)", (claim_dir / "ale_notice.txt").read_text())
-    if not notice:
-        raise ValueError("no ALE cutoff found in ale_notice.txt")
-    return AleTerms(int(promise.group(1)), int(notice.group(1)), parse_money(promise.group(2)))
+        if re.search(r"through month \d+ at", email.read_text()):
+            return parse_ale_text(email.read_text(), (claim_dir / "ale_notice.txt").read_text())
+    raise ValueError("no ALE promise found in adjuster emails")
 
 
 def load_payments(path) -> list:
@@ -137,8 +148,19 @@ def sum_payments(path, category=None) -> Decimal:
                 if category is None or p["category"] == category), Decimal(0))
 
 
-def parse_endorsement_effective_from(path) -> date:
-    m = re.search(r"Effective from: (\d{4}-\d{2}-\d{2})", Path(path).read_text())
+def parse_effective_from_text(text: str) -> date:
+    m = re.search(r"Effective from: (\d{4}-\d{2}-\d{2})", text)
     if not m:
-        raise ValueError("no 'Effective from' date in endorsement")
+        raise ValueError("no 'Effective from: YYYY-MM-DD' line")
     return date.fromisoformat(m.group(1))
+
+
+def parse_endorsement_effective_from(path) -> date:
+    return parse_effective_from_text(Path(path).read_text())
+
+
+def parse_endorsement_limit_text(text: str) -> Decimal:
+    m = re.search(r"Limit of liability: \$([\d,]+)", text)
+    if not m:
+        raise ValueError("no 'Limit of liability: $N' line in the endorsement")
+    return parse_money(m.group(1))

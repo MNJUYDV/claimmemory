@@ -34,6 +34,14 @@ Claims: `PK-20719` (past, labeled, training) and `HO-48213` (live). `data/labels
 truth for the scorer only; agent code must read collections via `db.get_agent_collection`, which
 refuses `labels` and `scores`. `dataparse.py` recomputes every amount from the files.
 
+## Tools and guardrails (Phase 2, no LLM)
+
+- `ingest.py`: `ingest_document(claimId, filename)` / `ingest_claim(claimId)`. Harness-only, idempotent.
+- `tools.py`: 11 tools with JSON schemas (`tool_definitions()`), dispatched with `call_tool(ctx, name, args)`.
+  `ToolContext(claimId, runId)` is injected by the harness (`runs.start_run(claimId)`); the model never
+  supplies either. Amounts come only from `compute_amount`; quotes must be verbatim; errors are JSON.
+- Tools read data only through `db.get_agent_collection()`, which refuses `labels` and `scores`.
+
 ## Run
 
 ```bash

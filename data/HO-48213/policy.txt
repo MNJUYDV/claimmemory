@@ -3,6 +3,7 @@ Policy number: HM-HO-0071843
 Insured: Maria Alvarez
 Property: 77 Copperleaf Lane, Alderbrook, ST 00000
 Claim: HO-48213
+Effective from: 2025-04-01
 
 SECTION 1. DEFINITIONS
 1.1 "Covered loss" means direct physical loss by fire to the insured dwelling.

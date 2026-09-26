@@ -52,7 +52,7 @@ CLAIMS = {
         name="Maria Alvarez", role="live", status="open", loss="2026-05-30", tz="-05:00",
         address="77 Copperleaf Lane, Alderbrook, ST 00000", policy_no="HM-HO-0071843",
         adjuster="Priya Nandakumar", contractor="Ridgeway Restoration LLC", seed=48213,
-        endorsement_effective="2026-04-01",
+        endorsement_effective="2026-04-01", policy_effective="2025-04-01",
         est=dict(  # version: (date, total $, n lines, n labor-dep lines, labor-dep $, lines w/o labor)
             v1=("2026-06-10", 54000, 44, 0, 0, 5),
             v2=("2026-07-18", 61200, 52, 41, 11300, 6),
@@ -83,7 +83,7 @@ CLAIMS = {
         name="Daniel and Grace Park", role="past", status="closed", loss="2026-02-14", tz="-06:00",
         address="1184 Marlow Terrace, Alderbrook, ST 00000", policy_no="HM-HO-0059172",
         adjuster="Tomas Reinholt", contractor="Cobalt Creek Builders", seed=20719,
-        endorsement_effective="2025-12-01",
+        endorsement_effective="2025-12-01", policy_effective="2024-12-01",
         est=dict(
             v1=("2026-03-02", 29800, 26, 0, 0, 4),
             v2=("2026-04-09", 34500, 30, 18, 4200, 5),
@@ -177,6 +177,7 @@ Policy number: {c['policy_no']}
 Insured: {c['name']}
 Property: {c['address']}
 Claim: {claim_id}
+Effective from: {c['policy_effective']}
 
 SECTION 1. DEFINITIONS
 1.1 "Covered loss" means direct physical loss by fire to the insured dwelling.
