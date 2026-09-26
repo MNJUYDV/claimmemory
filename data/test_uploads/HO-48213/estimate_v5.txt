@@ -1,0 +1,67 @@
+ESTIMATE
+Claim: HO-48213
+Insured: Maria Alvarez
+Version: v5
+Date written: 2026-10-12
+Relied on: policy.txt; estimate_v4.txt; contractor_bid.txt; endorsement_code_upgrade.txt
+Depreciation method: actual cash value; depreciation applied to material only
+Total: $79,900.00
+
+line_id | description | material | labor | labor_depreciation
+L001 | Demolition and debris removal, per re-inspection | 249.51 | 526.84 | 0.00
+L002 | Haul-away and dumpster rental, per re-inspection | 494.02 | 0.00 | 0.00
+L003 | Contents manipulation and pack-out | 588.83 | 887.60 | 0.00
+L004 | Water extraction from suppression | 938.13 | 939.14 | 0.00
+L005 | Structural drying equipment, per day | 179.65 | 343.59 | 0.00
+L006 | Soot and smoke residue cleaning, walls | 214.58 | 0.00 | 0.00
+L007 | Soot and smoke residue cleaning, ceiling | 653.70 | 0.00 | 0.00
+L008 | Seal and prime, smoke-damaged surfaces | 209.59 | 698.63 | 0.00
+L009 | Drywall 1/2 inch, hang and finish, walls | 948.11 | 864.70 | 0.00
+L010 | Drywall 1/2 inch, hang and finish, ceiling | 773.46 | 996.41 | 0.00
+L011 | Insulation, batt, exterior wall | 264.48 | 732.99 | 0.00
+L012 | Framing repair, wall studs | 828.35 | 435.21 | 0.00
+L013 | Framing repair, ceiling joists | 494.02 | 1025.04 | 0.00
+L014 | Subfloor replacement, plywood | 274.46 | 755.89 | 0.00
+L015 | Vinyl plank flooring | 419.17 | 692.90 | 0.00
+L016 | Flooring underlayment | 209.59 | 475.30 | 0.00
+L017 | Baseboard trim, 5 inch | 314.38 | 584.10 | 0.00
+L018 | Crown molding, paint grade | 543.92 | 1105.21 | 0.00
+L019 | Interior door, pre-hung, replace | 234.54 | 446.67 | 0.00
+L020 | Door casing and hardware | 324.35 | 406.58 | 0.00
+L021 | Window, vinyl double-hung, replace | 479.04 | 0.00 | 0.00
+L022 | Window trim and sill | 578.84 | 1076.58 | 0.00
+L023 | Base cabinets, replace | 968.06 | 721.54 | 0.00
+L024 | Wall cabinets, replace | 284.43 | 589.83 | 0.00
+L025 | Cabinet hardware | 783.43 | 939.14 | 0.00
+L026 | Countertop, quartz, fabricate and install | 379.24 | 601.28 | 0.00
+L027 | Backsplash tile, ceramic | 399.20 | 939.13 | 0.00
+L028 | Sink, stainless, reset | 558.88 | 1070.84 | 0.00
+L029 | Faucet, replace | 424.15 | 847.51 | 0.00
+L030 | Range hood, replace | 708.58 | 1128.10 | 0.00
+L031 | Dishwasher, reset and reconnect | 304.39 | 561.19 | 0.00
+L032 | Plumbing supply lines, replace | 553.89 | 818.88 | 0.00
+L033 | Drain line repair | 923.15 | 412.30 | 0.00
+L034 | Outlets and switches, replace | 828.34 | 1116.65 | 0.00
+L035 | Light fixtures, replace | 783.43 | 761.61 | 0.00
+L036 | Recessed lighting, replace | 523.95 | 423.75 | 0.00
+L037 | Wiring repair, damaged runs | 369.26 | 0.00 | 0.00
+L038 | Paint, walls, two coats | 294.41 | 555.46 | 0.00
+L039 | Paint, ceiling, two coats | 479.04 | 841.78 | 0.00
+L040 | Paint, trim and doors | 503.99 | 532.55 | 0.00
+L041 | Texture, ceiling, match existing | 179.64 | 1070.84 | 0.00
+L042 | HVAC duct cleaning | 394.21 | 904.77 | 0.00
+L043 | HVAC register and grille replacement | 309.38 | 721.53 | 0.00
+L044 | Attic insulation, blown-in, repair | 828.34 | 641.36 | 0.00
+L045 | Roof decking repair, section | 943.11 | 360.76 | 0.00
+L046 | Roofing, asphalt shingle, repair | 379.24 | 973.49 | 0.00
+L047 | Flashing and vent boots | 783.43 | 652.81 | 0.00
+L048 | Gutter and downspout repair | 773.45 | 795.97 | 0.00
+L049 | Exterior siding repair, vinyl | 573.85 | 532.55 | 0.00
+L050 | Exterior paint, touch-up | 948.10 | 0.00 | 0.00
+L051 | Final cleaning, post-construction | 359.28 | 778.79 | 0.00
+L052 | Project supervision and general conditions | 783.43 | 372.21 | 0.00
+L053 | Electrical service panel upgrade to current code | 6400.00 | 0.00 | 0.00
+L054 | Arc-fault (AFCI) breaker retrofit, kitchen and adjoining circuits | 3900.00 | 0.00 | 0.00
+L055 | Type X fire-rated gypsum board, kitchen walls and ceiling | 4300.00 | 0.00 | 0.00
+L056 | Interconnected smoke and CO alarm system | 1150.00 | 0.00 | 0.00
+L057 | Kitchen makeup-air ventilation for range hood | 2950.00 | 0.00 | 0.00

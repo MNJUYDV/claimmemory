@@ -1,0 +1,17 @@
+REBUILD SCHEDULE
+Contractor: Ridgeway Restoration LLC
+Claim: HO-48213
+Insured: Maria Alvarez
+Date: 2026-09-28
+
+Planned sequence of work for the kitchen rebuild. Durations are working estimates and depend on
+permit timing, material delivery and inspection availability.
+
+phase | work | estimated duration
+1 | Demolition and debris removal | 1 week
+2 | Framing repair | 2 weeks
+3 | Electrical rough-in and inspection | 1 week
+4 | Cabinets and countertop installation | 2 weeks
+5 | Final inspection and punch list | 1 week
+
+Work in each phase begins once the previous phase has passed any required inspection.

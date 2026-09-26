@@ -21,11 +21,11 @@ def _iso(dt):
 
 
 def totals(claim_id: str) -> dict:
-    """paid = dwelling payments; recoverable = sum of findings; owed = paid + recoverable."""
+    """paid = dwelling payments; recoverable = sum of open findings; owed = paid + recoverable."""
     paid = sum((Decimal(str(p["amount"])) for p in _coll("payments").find(
         {"claimId": claim_id, "category": "dwelling"})), Decimal(0))
-    recoverable = sum((Decimal(str(f["amount"])) for f in _coll("findings").find({"claimId": claim_id})),
-                      Decimal(0))
+    recoverable = sum((Decimal(str(f["amount"])) for f in _coll("findings").find(
+        {"claimId": claim_id, "status": {"$ne": "resolved"}})), Decimal(0))
     return {"paid": float(paid), "owed": float(paid + recoverable), "recoverable": float(recoverable)}
 
 
@@ -47,6 +47,8 @@ def summarize_call(name: str, args: dict, output: dict) -> str:
         return f"searched policy: {args.get('query')}"[:120]
     if name == "compute_amount":
         return f"{args.get('rule')} = {output.get('amount')}"
+    if name == "resolve_finding":
+        return f"finding {args.get('type')} resolved"
     if name == "upsert_finding":
         return f"finding {args.get('type')} {output.get('status')} ({output.get('amount')})"
     return name
@@ -69,16 +71,20 @@ def timeline(claim_id: str) -> list:
     return rows
 
 
-def findings(claim_id: str) -> list:
+def findings(claim_id: str, resolved: bool = False) -> list:
     versions = {}
     out = []
-    for f in _coll("findings").find({"claimId": claim_id}).sort("createdAt", 1):
+    query = {"claimId": claim_id, "status": "resolved"} if resolved else {
+        "claimId": claim_id, "status": {"$ne": "resolved"}}
+    for f in _coll("findings").find(query).sort("createdAt", 1):
         if f["runId"] not in versions:
             run = _coll("agent_runs").find_one({"runId": f["runId"]}, {"rulebookVersion": 1})
             versions[f["runId"]] = (run or {}).get("rulebookVersion")
         out.append({"type": f["type"], "title": f["title"], "detail": f["detail"], "amount": f["amount"],
                     "evidence": [{"filename": e["filename"], "quote": e["quote"]} for e in f["evidence"]],
-                    "decisionId": f.get("decisionId"), "ruleVersion": versions[f["runId"]]})
+                    "decisionId": f.get("decisionId"), "ruleVersion": versions[f["runId"]],
+                    **({"resolvedAt": _iso(f.get("resolvedAt")), "resolvedByFilename": f.get("resolvedByFilename")}
+                       if resolved else {})})
     return out
 
 
@@ -96,7 +102,8 @@ def workspace(claim_id: str):
     if not claim:
         return None
     return {"header": header(claim), "totals": totals(claim_id), "timeline": timeline(claim_id),
-            "findings": findings(claim_id), "latestRun": latest_run(claim_id)}
+            "findings": findings(claim_id), "resolvedFindings": findings(claim_id, resolved=True),
+            "latestRun": latest_run(claim_id)}
 
 
 def rulebook_history(claim_id: str):

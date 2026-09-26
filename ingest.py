@@ -26,7 +26,7 @@ def doc_type(filename: str) -> str:
         return "bid"
     if filename.startswith("adjuster_email"):
         return "email"
-    if filename == "ale_notice.txt":
+    if filename.startswith("ale_notice"):
         return "notice"
     if filename == "payments.json":
         return "payments"

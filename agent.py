@@ -32,12 +32,13 @@ SYSTEM_PROMPT = """You work for the policyholder's public adjuster. You review a
 Work in this order:
 1. Call get_claim_state, then get_rules. The rulebook lists the only finding types you may file.
 2. Read every document with read_document. Line numbers are display only: never include them in a quote.
-3. Record facts (record_fact) for the policy terms, each estimate, each promise made to the policyholder, and the living-expense (ALE) payments. Use row "estimate_total" for an estimate's total, quoting its "Total:" line, with validFrom set to that estimate's receivedAt from list_documents. When a newer estimate arrives, supersede the older estimate's fact with supersede_fact. Copy timestamps exactly, including their UTC offset.
+3. Record facts (record_fact) for the policy terms, each estimate, each promise made to the policyholder, and the living-expense (ALE) payments. Use row "estimate_total" for an estimate's total, quoting its "Total:" line, with validFrom set to that estimate's receivedAt from list_documents. When a newer estimate or ALE notice arrives, supersede the older one's fact with supersede_fact (re-record the older facts first if you need their ids: recording an identical fact again is harmless). Copy timestamps exactly, including their UTC offset.
 4. Record a decision (record_decision) for each estimate: its filename, madeAt set to its receivedAt, and citedFilenames set to exactly the documents in its "Relied on" header.
 5. Use replay on each decision to see which documents the insurer had already received but did not cite.
-6. Then apply each rule in the rulebook: use search_policy to find the governing clause, call compute_amount with the rule's computeRule and the right documents (use the latest estimate by receivedAt, and cite it in your evidence), then call upsert_finding with the calcId and verbatim evidence quotes (each at least 10 characters, copied exactly from the document text). Cite the evidence that shows why the finding applies and where the numbers come from.
+6. Then apply each rule in the rulebook: use search_policy to find the governing clause, call compute_amount with the rule's computeRule and the right documents, then call upsert_finding with the calcId and verbatim evidence quotes (each at least 10 characters, copied exactly from the document text). Cite the evidence that shows why the finding applies and where the numbers come from.
+7. Always compute on the latest non-superseded estimate and the latest ALE notice (the newest of each by receivedAt): newer documents replace older ones. After recomputing each rule, act on the result: if the amount is above 0, call upsert_finding (it updates an existing finding whose amount changed); if the amount is 0, call resolve_finding with that calcId and a one-sentence reason, so an earlier finding the new document fixed is closed. If it is 0 and no finding is open for that rule, file nothing.
 
-Never state a dollar amount that compute_amount did not return; the amount on a finding is set by the system from the calculation. File a finding only for a type in the rulebook, and only when its calculation shows an amount. When you are finished, reply with a one-paragraph summary and make no further tool calls."""
+Never state a dollar amount that compute_amount did not return; the amount on a finding is set by the system from the calculation. File a finding only for a type in the rulebook, and only when its calculation shows an amount above 0. When you are finished, reply with a one-paragraph summary and make no further tool calls."""
 
 
 @dataclass
@@ -101,6 +102,9 @@ def _execute_tools(ctx: ToolContext, step: int, response_blocks: list) -> list:
               summary=workspace.summarize_call(block["name"], block["input"], output))
         if block["name"] == "upsert_finding" and not is_error:
             _emit(ctx, f"finding_{output['status']}", findingType=block["input"]["type"], amount=output["amount"])
+            _emit(ctx, "totals_changed", totals=workspace.totals(ctx.claimId))
+        if block["name"] == "resolve_finding" and not is_error:
+            _emit(ctx, "finding_resolved", findingType=block["input"]["type"])
             _emit(ctx, "totals_changed", totals=workspace.totals(ctx.claimId))
         results.append({"type": "tool_result", "tool_use_id": block["id"],
                         "content": json.dumps(output), "is_error": is_error})

@@ -173,12 +173,15 @@ def get_claim_state(ctx):
         cat["total"] += Decimal(str(p["amount"]))
         cat["payments"].append({"paidAt": p["paidAt"], "amount": p["amount"], "memo": p.get("memo")})
     findings = _coll("findings").find({"claimId": ctx.claimId, "status": "open"})
+    resolved = _coll("findings").find({"claimId": ctx.claimId, "status": "resolved"})
     docs = _coll("documents").find({"claimId": ctx.claimId}).sort("receivedAt", 1)
     return _jsonable({
         "claim": {k: claim[k] for k in ("claimId", "insurer", "insuredName", "propertyAddress",
                                         "policyNumber", "lossType", "lossDate", "status")},
         "paymentsByCategory": by_cat,
         "openFindings": [{k: f[k] for k in ("type", "title", "amount", "calcId")} for f in findings],
+        "resolvedFindings": [{"type": f["type"], "resolvedByFilename": f.get("resolvedByFilename")}
+                             for f in resolved],
         "documents": [{"filename": d["filename"], "type": d["type"], "receivedAt": d["receivedAt"]}
                       for d in docs],
     })
@@ -246,7 +249,29 @@ def record_fact(ctx, row, label, validFrom, sourceFilename, quote):
         "validFrom": valid_from, "validTo": OPEN_ENDED, "sourceFilename": sourceFilename,
         "quote": quote, "supersededBy": None, "createdAt": _now()})
     _coll("facts").insert_one(doc)
-    return {"factId": fact_id, "validFrom": valid_from.isoformat(), "validTo": OPEN_ENDED.isoformat()}
+    _supersede_by_newer_documents(ctx.claimId, fact_id)
+    fact = _coll("facts").find_one({"_id": fact_id})
+    return {"factId": fact_id, "validFrom": valid_from.isoformat(), "validTo": fact["validTo"].isoformat()}
+
+
+def _supersede_by_newer_documents(claim_id, fact_id):
+    """A newer estimate or ALE notice replaces the older ones: facts sourced from an older document of
+    that type end when the newer document's facts begin, whatever the model remembered to supersede."""
+    facts = _coll("facts")
+    docs = {d["filename"]: d for d in _coll("documents").find({"claimId": claim_id},
+                                                               {"filename": 1, "type": 1, "receivedAt": 1})}
+    new = facts.find_one({"_id": fact_id})
+    src = docs.get(new["sourceFilename"])
+    if not src or src["type"] not in ("estimate", "notice"):
+        return
+    for other in facts.find({"claimId": claim_id, "_id": {"$ne": fact_id}}):
+        od = docs.get(other["sourceFilename"])
+        if not od or od["type"] != src["type"] or od["filename"] == src["filename"]:
+            continue
+        older, newer = (other, new) if od["receivedAt"] < src["receivedAt"] else (new, other)
+        if older.get("supersededBy") is None:
+            facts.update_one({"_id": older["_id"]}, {"$set": db.prepare_doc("facts", {
+                "validTo": max(newer["validFrom"], older["validFrom"]), "supersededBy": newer["_id"]})})
 
 
 def supersede_fact(ctx, oldFactId, newFactId):
@@ -432,10 +457,51 @@ def upsert_finding(ctx, type, title, detail, calcId, evidence, decisionId=None):
         "calcId": calcId, "rule": calc["rule"], "amount": calc["amount"],  # always from the calc
         "amountCents": calc["amountCents"], "evidence": evidence, "decisionId": decisionId,
         "status": "open", "updatedAt": _now()})
-    res = _coll("findings").update_one(
-        {"_id": finding_id}, {"$set": doc, "$setOnInsert": {"createdAt": _now()}}, upsert=True)
+    res = _coll("findings").update_one(  # a resolved finding whose amount came back is open again
+        {"_id": finding_id}, {"$set": doc, "$setOnInsert": {"createdAt": _now()},
+                              "$unset": {"resolvedAt": "", "resolvedByFilename": "", "resolution": ""}},
+        upsert=True)
     return {"findingId": finding_id, "status": "created" if res.upserted_id is not None else "updated",
             "amount": calc["amount"]}
+
+
+# which input of each compute rule is the document the amount was computed on, and its type
+_BASIS = {"labor_depreciation_refund": ("estimate", "estimate"),
+          "missing_coverage": ("estimate", "estimate"),
+          "unpaid_ale": ("notice", "notice")}
+
+
+def resolve_finding(ctx, type, calcId, reason):
+    """Close an open finding whose amount is now 0 on the claim's latest estimate / ALE notice."""
+    _require_run(ctx)
+    if type not in _authorized_types(ctx):
+        raise ToolError(f"no active rule authorizes {type} findings")
+    run = _coll("agent_runs").find_one({"runId": ctx.runId, "claimId": ctx.claimId,
+                                        "calcs.calcId": calcId}, {"calcs.$": 1})
+    if not run:
+        raise ToolError(f"unknown calcId {calcId!r}; call compute_amount first")
+    calc = run["calcs"][0]
+    if calc["rule"] != RULE_FOR_TYPE[type]:
+        raise ToolError(f"calc {calcId} used rule {calc['rule']!r}, which cannot resolve a {type!r} finding")
+    if calc["amountCents"] != 0:
+        raise ToolError(f"calc {calcId} computed {calc['amount']}, not 0: update the finding with "
+                        f"upsert_finding instead of resolving it")
+    key, doc_type_ = _BASIS[calc["rule"]]
+    basis = calc["inputs"].get(key)
+    newest = _coll("documents").find_one({"claimId": ctx.claimId, "type": doc_type_},
+                                         sort=[("receivedAt", -1), ("filename", -1)])
+    if not newest or newest["filename"] != basis:
+        raise ToolError(f"calc {calcId} was computed on {basis!r}, but the latest {doc_type_} on file is "
+                        f"{newest['filename'] if newest else None!r}; recompute on that document")
+    finding_id = f"finding_{ctx.claimId}_{type}"
+    res = _coll("findings").update_one(
+        {"_id": finding_id, "status": "open"},
+        {"$set": db.prepare_doc("findings", {"status": "resolved", "resolvedAt": _now(),
+                                             "resolvedByFilename": basis, "resolution": reason,
+                                             "updatedAt": _now()})})
+    if res.matched_count == 0:
+        raise ToolError(f"no open {type} finding to resolve")
+    return {"findingId": finding_id, "status": "resolved", "resolvedByFilename": basis}
 
 
 # ---------- registry ----------
@@ -490,6 +556,11 @@ TOOLS = [
          _obj({"rule": {"type": "string", "enum": list(COMPUTE_RULES)},
                "inputs": _obj({k: _STR for k in ("estimate", "bid", "endorsement", "promise", "notice")})},
               ["rule", "inputs"]), compute_amount),
+    Tool("resolve_finding", "Close the open finding of this type because its amount is now 0. calcId must "
+         "be a compute_amount result in this run, for that type's rule, with amount 0, computed on the "
+         "latest estimate (or latest ALE notice).",
+         _obj({"type": {"type": "string", "enum": list(FINDING_TYPES)}, "calcId": _STR, "reason": _TEXT},
+              ["type", "calcId", "reason"]), resolve_finding),
     Tool("upsert_finding", "Create or update the finding of this type. The amount is taken from the "
          "calculation; you cannot set it. Every evidence quote must be verbatim.",
          _obj({"type": {"type": "string", "enum": list(FINDING_TYPES)}, "title": _STR, "detail": _TEXT,
