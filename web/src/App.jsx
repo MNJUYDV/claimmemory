@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { USE_SAMPLE_DATA, CLAIM_ID } from './config.js'
 import { useWorkspace } from './useWorkspace.js'
 import { fetchReplay, uploadDocument } from './api.js'
@@ -106,28 +106,79 @@ function Score({ rulebook, onClose }) {
   )
 }
 
-const AXIS_START = Date.UTC(2026, 4, 1)
-const AXIS_END = Date.UTC(2026, 9, 1)
-const MONTHS = ['May', 'Jun', 'Jul', 'Aug', 'Sep']
-const pos = (s, dflt) => { const t = s ? Date.parse(s) : NaN; return Number.isNaN(t) ? dflt : Math.min(100, Math.max(0, ((t - AXIS_START) / (AXIS_END - AXIS_START)) * 100)) }
+const DAY_PX = 6
+const DAY_MS = 86400000
+const MIN_BAR = 140
+const LANE_H = 30
+const LABEL_W = 116
+const rowName = (r) => r.replace(/_/g, ' ')
+const shortDate = (s) => (s ? new Date(s).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' }) : 'ongoing')
+
+function layoutTimeline(items) {
+  const dated = items.filter((i) => i.validFrom && !Number.isNaN(Date.parse(i.validFrom)))
+  if (!dated.length) return null
+  const first = new Date(Math.min(...dated.map((i) => Date.parse(i.validFrom))))
+  const start = Date.UTC(first.getUTCFullYear(), first.getUTCMonth(), 1)
+  const today = Date.now()
+  const end = today + 14 * DAY_MS
+  const px = (t) => ((t - start) / DAY_MS) * DAY_PX
+  const width = Math.ceil(px(end)) + MIN_BAR
+  const rows = [...new Set(dated.map((i) => i.row))].map((row) => {
+    const bars = dated.filter((i) => i.row === row).sort((a, b) => Date.parse(a.validFrom) - Date.parse(b.validFrom)).map((i) => {
+      const left = px(Date.parse(i.validFrom))
+      const right = i.validTo ? px(Date.parse(i.validTo)) : px(today)
+      return { item: i, left, w: Math.max(right - left, MIN_BAR) }
+    })
+    const laneEnds = []  // each bar goes in the first lane where it does not overlap
+    for (const b of bars) {
+      let lane = laneEnds.findIndex((e) => e <= b.left)
+      if (lane < 0) { lane = laneEnds.length; laneEnds.push(0) }
+      laneEnds[lane] = b.left + b.w
+      b.lane = lane
+    }
+    return { row, bars, lanes: Math.max(laneEnds.length, 1) }
+  })
+  const ticks = []
+  for (let d = new Date(start); d.getTime() <= end; d = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1))) {
+    ticks.push({ x: px(d.getTime()), label: d.toLocaleDateString('en-US', { month: 'short', timeZone: 'UTC' }) + (d.getUTCMonth() === 0 ? ' ' + d.getUTCFullYear() : '') })
+  }
+  return { rows, ticks, width }
+}
 
 function Timeline({ items }) {
-  const rows = [...new Set(items.map((i) => i.row))]
-  const rowName = (r) => r.replace(/_/g, ' ')
-  const newest = items.filter((i) => i.row.startsWith('estimate') && !i.superseded).sort((a, b) => b.validFrom.localeCompare(a.validFrom))[0]
+  const scroller = useRef(null)
+  const lay = layoutTimeline(items)
+  useEffect(() => { if (scroller.current) scroller.current.scrollLeft = scroller.current.scrollWidth }, [items.length])
+  if (!lay) return <div className="card"><h3>Timeline</h3><p className="muted">No dated facts yet</p></div>
+  const est = items.filter((i) => i.row.startsWith('estimate') && !i.superseded && /estimate|v\d/i.test(i.label))
+  const newest = est.sort((a, b) => Date.parse(b.validFrom) - Date.parse(a.validFrom))[0]
   return (
-    <div className="card">
+    <div className="card tl">
       <h3>Timeline</h3>
-      <div className="axis">{MONTHS.map((m) => <span key={m}>{m}</span>)}</div>
-      {rows.map((row) => (
-        <div key={row}><div className="rname muted">{rowName(row)}</div><div className="trow">
-          {items.filter((i) => i.row === row).map((i) => {
-            const l = pos(i.validFrom, 0), r = pos(i.validTo, 100)
-            const cls = 'seg' + (i.superseded ? ' sup' : '') + (i === newest ? ' new' : '')
-            return <div key={i.label} className={cls} style={{ left: l + '%', width: Math.max(r - l, 4) + '%' }} title={`${i.label} · ${i.validFrom} → ${i.validTo}`}><span>{i.label}</span></div>
-          })}
-        </div></div>
-      ))}
+      <div className="tl-scroll" ref={scroller}>
+        <div style={{ width: LABEL_W + lay.width }}>
+          <div className="tl-row">
+            <div className="tl-label" />
+            <div className="tl-track axis" style={{ width: lay.width, height: 22 }}>
+              {lay.ticks.map((t) => <span key={t.x} className="tick" style={{ left: t.x }}>{t.label}</span>)}
+            </div>
+          </div>
+          {lay.rows.map((r) => (
+            <div className="tl-row" key={r.row}>
+              <div className="tl-label muted">{rowName(r.row)}</div>
+              <div className="tl-track" style={{ width: lay.width, height: r.lanes * LANE_H + 4 }}>
+                {lay.ticks.map((t) => <i key={t.x} className="gridline" style={{ left: t.x }} />)}
+                {r.bars.map((b, k) => {
+                  const i = b.item
+                  const cls = 'seg' + (i.superseded ? ' sup' : '') + (i === newest ? ' new' : '')
+                  const tip = `${i.label}\n${shortDate(i.validFrom)} – ${i.validTo ? shortDate(i.validTo) : 'ongoing'}${i.sourceFilename ? '\nSource: ' + i.sourceFilename : ''}`
+                  return <div key={k} className={cls} title={tip} style={{ left: b.left, width: b.w - 2, top: b.lane * LANE_H + 2 }}>{i.label}</div>
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   )
 }
@@ -250,7 +301,10 @@ function FindingCard({ f, done, onOpen }) {
   return (
     <div className={'card finding' + (done ? ' done' : '') + (clickable ? ' click' : '')} onClick={() => clickable && onOpen(f.decisionId)}>
       <div className="fhead">
-        <b>{f.title}</b>
+        <div className="ftitle">
+          <b>{f.title}</b>
+          {!done && f.ruleAddedInVersion > 1 && <span className="tag">Caught by a new rule</span>}
+        </div>
         <span className="mono amt">{money(f.amount)}</span>
       </div>
       <p className="summary muted">{f.summary}</p>
@@ -265,7 +319,6 @@ function FindingCard({ f, done, onOpen }) {
           </div>
         </div>
       )}
-      {!done && f.ruleVersion > 1 && <div><span className="tag">caught by a new rule</span></div>}
       {done && <div className="muted small">fixed in <span className="mono">{f.resolvedByFilename}</span></div>}
     </div>
   )

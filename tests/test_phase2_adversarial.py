@@ -333,5 +333,7 @@ def test_finding_is_stored_and_served_in_the_new_shape(maria):
     from fastapi.testclient import TestClient
     from main import app
     f = TestClient(app).get(f"/api/claims/{MARIA}/workspace").json()["findings"][0]
-    assert set(f) == {"type", "title", "summary", "points", "amount", "evidence", "decisionId", "ruleVersion"}
+    assert set(f) == {"type", "title", "summary", "points", "amount", "evidence", "decisionId", "ruleVersion",
+                      "ruleId", "ruleAddedInVersion"}
     assert f["points"] == POINTS and f["evidence"][0]["filename"] == "ale_notice.txt"
+    assert stored["ruleId"] == "HM-ALE-001" and f["ruleId"] == "HM-ALE-001" and f["ruleAddedInVersion"] == 1

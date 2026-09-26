@@ -399,13 +399,13 @@ def seed_rules():
         "insurer": "Harborline Mutual", "version": 1,
         "rules": [
             {"id": "HM-MC-001", "insurer": "Harborline Mutual", "type": "missing_coverage", "version": 1,
-             "createdAt": created, "active": True, "computeRule": "missing_coverage",
+             "createdAt": created, "active": True, "addedInVersion": 1, "computeRule": "missing_coverage",
              "instruction": "If an ordinance-or-law endorsement was in effect and received before an estimate "
                             "was written but the estimate's 'Relied on' list omits it, sum the contractor's code "
                             "upgrade items that appear in no estimate line. Report the sum, capped at the "
                             "endorsement limit."},
             {"id": "HM-ALE-001", "insurer": "Harborline Mutual", "type": "unpaid_ale", "version": 1,
-             "createdAt": created, "active": True, "computeRule": "unpaid_ale",
+             "createdAt": created, "active": True, "addedInVersion": 1, "computeRule": "unpaid_ale",
              "instruction": "Compare the adjuster's written ALE promise (months and monthly rate) with the "
                             "cutoff stated in the ALE notice. Unpaid ALE is (promised months - cutoff month) "
                             "x monthly rate."},

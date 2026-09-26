@@ -67,23 +67,30 @@ def timeline(claim_id: str) -> list:
         row = TIMELINE_ROW.get(types.get(f["sourceFilename"], ingest.doc_type(f["sourceFilename"])))
         if row:
             rows.append({"row": row, "label": f["label"], "validFrom": _iso(f["validFrom"]),
-                         "validTo": _iso(f["validTo"]), "superseded": f.get("supersededBy") is not None})
+                         "validTo": _iso(f["validTo"]), "superseded": f.get("supersededBy") is not None,
+                         "sourceFilename": f["sourceFilename"]})
     return rows
 
 
 def findings(claim_id: str, resolved: bool = False) -> list:
     versions = {}
     out = []
+    insurer = rulebook.insurer_of(claim_id)
     query = {"claimId": claim_id, "status": "resolved"} if resolved else {
         "claimId": claim_id, "status": {"$ne": "resolved"}}
     for f in _coll("findings").find(query).sort("createdAt", 1):
         if f["runId"] not in versions:
             run = _coll("agent_runs").find_one({"runId": f["runId"]}, {"rulebookVersion": 1})
             versions[f["runId"]] = (run or {}).get("rulebookVersion")
+        rule_id = f.get("ruleId")
+        added = None
+        if rule_id and insurer:
+            added = rulebook.added_in_version(insurer, rule_id)
         out.append({"type": f["type"], "title": f["title"], "summary": f.get("summary") or f.get("detail", ""),
                     "points": f.get("points", []), "amount": f["amount"],
                     "evidence": [{"filename": e["filename"], "quote": e["quote"]} for e in f["evidence"]],
                     "decisionId": f.get("decisionId"), "ruleVersion": versions[f["runId"]],
+                    "ruleId": rule_id, "ruleAddedInVersion": added,
                     **({"resolvedAt": _iso(f.get("resolvedAt")), "resolvedByFilename": f.get("resolvedByFilename")}
                        if resolved else {})})
     return out

@@ -438,7 +438,8 @@ def _decision_that_missed(claim_id):
 
 def upsert_finding(ctx, type, title, summary, points, calcId, evidence, decisionId=None):
     _require_run(ctx)
-    if type not in _authorized_types(ctx):
+    rule = next((r for r in _run_rules(ctx)[2] if r["type"] == type), None)
+    if rule is None:
         raise ToolError(f"no active rule authorizes {type} findings")
     run = _coll("agent_runs").find_one({"runId": ctx.runId, "claimId": ctx.claimId,
                                         "calcs.calcId": calcId}, {"calcs.$": 1})
@@ -469,7 +470,8 @@ def upsert_finding(ctx, type, title, summary, points, calcId, evidence, decision
     doc = db.prepare_doc("findings", {
         "claimId": ctx.claimId, "runId": ctx.runId, "type": type, "title": title, "summary": summary,
         "points": list(points),
-        "calcId": calcId, "rule": calc["rule"], "amount": calc["amount"],  # always from the calc
+        "calcId": calcId, "rule": calc["rule"], "ruleId": rule["id"],  # the rule that authorized it
+        "amount": calc["amount"],  # always from the calc
         "amountCents": calc["amountCents"], "evidence": evidence, "decisionId": decisionId,
         "status": "open", "updatedAt": _now()})
     res = _coll("findings").update_one(  # a resolved finding whose amount came back is open again

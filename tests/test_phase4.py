@@ -100,6 +100,9 @@ def test_versions_and_status(seeded):
     assert rulebook.active_version(INSURER) == 1  # a candidate is not active
     assert {r["type"] for r in rulebook.rules_for(INSURER, 2)} == {"labor_depreciation", "missing_coverage", "unpaid_ale"}
     assert {r["type"] for r in rulebook.rules_for(INSURER, 1)} == {"missing_coverage", "unpaid_ale"}  # v1 untouched
+    added = lambda v: {r["id"]: r["addedInVersion"] for r in rulebook.rules_for(INSURER, v)}
+    assert added(1) == {"HM-MC-001": 1, "HM-ALE-001": 1}  # seeded v1 rules
+    assert added(2) == {"HM-MC-001": 1, "HM-ALE-001": 1, "labor_depreciation-v2": 2}  # copies keep 1; the new rule is 2
     rulebook.promote(INSURER, 2, decision="promoted")
     assert rulebook.active_version(INSURER) == 2
     assert rulebook.header(INSURER, 1)["status"] == "inactive" and rulebook.header(INSURER, 1)["supersededByVersion"] == 2
@@ -362,3 +365,16 @@ def test_proposer_prompt_never_mentions_labels_in_source():
     import inspect
     src = inspect.getsource(improve)
     assert "get_collection(\"labels\")" not in src and "labels.find" not in src
+
+
+@integ
+def test_added_in_version_falls_back_and_backfills_for_older_rules(seeded):
+    """Rules created before addedInVersion existed: min version holding that rule id; backfill stamps them."""
+    rule = {"type": "labor_depreciation", "instruction": "i" * 30, "computeRule": "labor_depreciation_refund"}
+    rulebook.create_candidate(INSURER, 1, rule, {})
+    db.rules.update_many({}, {"$unset": {"addedInVersion": ""}})  # simulate data from before the field existed
+    assert rulebook.added_in_version(INSURER, "HM-MC-001") == 1  # exists in v1 and its v2 copy
+    assert rulebook.added_in_version(INSURER, "labor_depreciation-v2") == 2
+    assert rulebook.backfill_added_in_version(INSURER) == 5 and rulebook.backfill_added_in_version(INSURER) == 0
+    assert {r["id"]: r["addedInVersion"] for r in rulebook.rules_for(INSURER, 2)} == {
+        "HM-MC-001": 1, "HM-ALE-001": 1, "labor_depreciation-v2": 2}

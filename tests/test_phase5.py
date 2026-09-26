@@ -278,7 +278,7 @@ def test_workspace_totals_rows_findings_and_no_label_data(maria_plain):  # T5.9
         db.get_agent_collection = real
     assert r.status_code == 200
     ws = r.json()
-    assert set(ws) == {"header", "totals", "timeline", "findings", "latestRun"}
+    assert set(ws) == {"header", "totals", "timeline", "findings", "resolvedFindings", "latestRun"}
     assert ws["header"]["family"] == "Alvarez family" and ws["header"]["lossType"] == "fire"
     assert ws["header"]["insurer"] == INSURER and ws["header"]["day"] > 0
     assert ws["totals"] == {"paid": 61200.0, "recoverable": 27100.0, "owed": 88300.0}
@@ -289,7 +289,8 @@ def test_workspace_totals_rows_findings_and_no_label_data(maria_plain):  # T5.9
     assert est[0]["validTo"] == est[1]["validFrom"] and est[1]["validTo"] is None  # v2 is open-ended
     assert {f["type"]: f["amount"] for f in ws["findings"]} == {"missing_coverage": 18700, "unpaid_ale": 8400}
     f = ws["findings"][0]
-    assert set(f) == {"type", "title", "summary", "points", "amount", "evidence", "decisionId", "ruleVersion"}
+    assert set(f) == {"type", "title", "summary", "points", "amount", "evidence", "decisionId", "ruleVersion",
+                "ruleId", "ruleAddedInVersion"}
     assert f["ruleVersion"] == 1 and f["decisionId"].startswith("dec_") and f["evidence"][0]["quote"]
     assert ws["latestRun"]["id"] == maria_plain.runId and ws["latestRun"]["rulebookVersion"] == 1
     # no label data: never touched labels/scores, and nothing label-shaped in the payload

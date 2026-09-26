@@ -52,6 +52,23 @@ def rules_for(insurer: str, version: int) -> list:
             if r.get("active", True)]
 
 
+def added_in_version(insurer: str, rule_id: str) -> int:
+    """The first rulebook version a rule appeared in. Rules that predate the stored field fall back to
+    the lowest version holding a rule with that id (copies keep their id across versions)."""
+    docs = list(_rules().find({"insurer": insurer, "id": rule_id, **NOT_A_HEADER}))
+    stored = [d["addedInVersion"] for d in docs if "addedInVersion" in d]
+    return min(stored) if stored else min((d["version"] for d in docs), default=1)
+
+
+def backfill_added_in_version(insurer: str) -> int:
+    """Stamp addedInVersion on rule documents that lack it. Idempotent; returns how many were updated."""
+    n = 0
+    for d in list(_rules().find({"insurer": insurer, "addedInVersion": {"$exists": False}, **NOT_A_HEADER})):
+        _rules().update_one({"_id": d["_id"]}, {"$set": {"addedInVersion": added_in_version(insurer, d["id"])}})
+        n += 1
+    return n
+
+
 def header(insurer: str, version: int):
     return _rules().find_one({"insurer": insurer, "version": version, **VERSION_DOC})
 
@@ -70,9 +87,10 @@ def create_candidate(insurer: str, base_version: int, new_rule: dict, provenance
     version = max(versions(insurer)) + 1
     for r in rules_for(insurer, base_version):
         copy = {k: v for k, v in r.items() if k != "_id"}
+        copy["addedInVersion"] = r.get("addedInVersion", added_in_version(insurer, r["id"]))  # never re-stamped
         db.upsert_one("rules", {"id": copy["id"], "version": version}, {**copy, "version": version})
     rule = {**new_rule, "id": f"{new_rule['type']}-v{version}", "insurer": insurer, "version": version,
-            "active": True, "docType": "rule", "createdAt": _now()}
+            "active": True, "docType": "rule", "addedInVersion": version, "createdAt": _now()}
     db.upsert_one("rules", {"id": rule["id"], "version": version}, rule)
     db.upsert_one("rules", {"insurer": insurer, "version": version, **VERSION_DOC}, {
         **VERSION_DOC, "insurer": insurer, "version": version, "status": "candidate",
