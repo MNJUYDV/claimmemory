@@ -16,7 +16,8 @@ import db
 import ingest
 import runs
 import tools
-from dataparse import DATA_DIR
+import dataparse
+import workspace
 from events import bus
 from tools import ToolContext, call_tool
 
@@ -34,7 +35,7 @@ Work in this order:
 3. Record facts (record_fact) for the policy terms, each estimate, each promise made to the policyholder, and the living-expense (ALE) payments. Use row "estimate_total" for an estimate's total, quoting its "Total:" line, with validFrom set to that estimate's receivedAt from list_documents. When a newer estimate arrives, supersede the older estimate's fact with supersede_fact. Copy timestamps exactly, including their UTC offset.
 4. Record a decision (record_decision) for each estimate: its filename, madeAt set to its receivedAt, and citedFilenames set to exactly the documents in its "Relied on" header.
 5. Use replay on each decision to see which documents the insurer had already received but did not cite.
-6. Then apply each rule in the rulebook: use search_policy to find the governing clause, call compute_amount with the rule's computeRule and the right documents, then call upsert_finding with the calcId and verbatim evidence quotes (each at least 10 characters, copied exactly from the document text). Cite the evidence that shows why the finding applies and where the numbers come from.
+6. Then apply each rule in the rulebook: use search_policy to find the governing clause, call compute_amount with the rule's computeRule and the right documents (use the latest estimate by receivedAt, and cite it in your evidence), then call upsert_finding with the calcId and verbatim evidence quotes (each at least 10 characters, copied exactly from the document text). Cite the evidence that shows why the finding applies and where the numbers come from.
 
 Never state a dollar amount that compute_amount did not return; the amount on a finding is set by the system from the calculation. File a finding only for a type in the rulebook, and only when its calculation shows an amount. When you are finished, reply with a one-paragraph summary and make no further tool calls."""
 
@@ -96,7 +97,11 @@ def _execute_tools(ctx: ToolContext, step: int, response_blocks: list) -> list:
                   "startedAt": started, "durationMs": ms}
         _runs().update_one({"runId": ctx.runId}, {"$push": {"toolCalls": record}})
         _emit(ctx, "tool_call", step=step, seq=seq, name=block["name"], input=block["input"],
-              output=output, isError=is_error, durationMs=ms)
+              output=output, isError=is_error, durationMs=ms,
+              summary=workspace.summarize_call(block["name"], block["input"], output))
+        if block["name"] == "upsert_finding" and not is_error:
+            _emit(ctx, f"finding_{output['status']}", findingType=block["input"]["type"], amount=output["amount"])
+            _emit(ctx, "totals_changed", totals=workspace.totals(ctx.claimId))
         results.append({"type": "tool_result", "tool_use_id": block["id"],
                         "content": json.dumps(output), "is_error": is_error})
     return results
@@ -163,19 +168,24 @@ def _client(client):
 
 
 def held_filenames(claim_id: str) -> list:
-    entries = json.loads((DATA_DIR / "manifest.json").read_text())
+    entries = json.loads((dataparse.DATA_DIR / "manifest.json").read_text())
     return [e["filename"] for e in entries if e["claimId"] == claim_id and e.get("hold")]
 
 
 def run_agent(claim_id: str, task: str = "review_claim", *, max_steps: int = MAX_STEPS,
-              client=None, model: str = None, after_step=None) -> RunResult:
-    """Ingest the claim's documents (skipping held ones), then run the tool-use loop to completion."""
+              client=None, model: str = None, after_step=None, rulebook_version: int = None) -> RunResult:
+    """Ingest the claim's documents (skipping held ones), then run the tool-use loop to completion.
+
+    The run reads the rulebook version active at start (or rulebook_version, for a candidate re-run)
+    and records it on the run."""
     if not db.get_collection("claims").find_one({"claimId": claim_id}):
         raise ValueError(f"unknown claim {claim_id!r}; seed the database first")
     if task != "review_claim":
         raise ValueError(f"unknown task {task!r}")
     ingest.ingest_claim(claim_id, exclude=held_filenames(claim_id))
-    ctx = runs.start_run(claim_id)
+    ctx = runs.start_run(claim_id, rulebook_version)
+    _set(ctx, documentFilenames=[d["filename"] for d in db.get_collection("documents").find(
+        {"claimId": claim_id}, {"filename": 1})])  # what this run reviews (the listener skips these)
     _set(ctx, task=task, model=model or config.CLAUDE_MODEL,
          messages=[{"role": "user", "content": f"Review this claim ({task}) and file any findings the "
                                                f"rulebook allows."}])

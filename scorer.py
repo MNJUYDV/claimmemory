@@ -26,6 +26,9 @@ def score_run(run_id: str) -> dict:
         found = f["amountCents"] if f else None
         amounts[t] = {"expected": expected / 100, "found": None if found is None else found / 100,
                       "exact": found == expected}
+    miss_details = [{"type": t, "expectedAmount": labels[t]["amount"],
+                     "evidence": [{"filename": e["filename"], "quote": e["quote"]} for e in labels[t]["evidence"]]}
+                    for t in missed]  # the only label-derived data that leaves the scorer
     quotes = [(e["filename"], e["quote"]) for f in findings.values() for e in f.get("evidence", [])]
     verified = sum(1 for name, q in quotes if q and q in docs.get(name, ""))
 
@@ -33,7 +36,7 @@ def score_run(run_id: str) -> dict:
         "runId": run_id, "claimId": claim_id,
         "rulebookVersion": run.get("rulebookVersion"),
         "expected": sorted(labels), "caught": caught, "missed": missed, "falsePositives": false_positives,
-        "caughtCount": len(caught), "expectedCount": len(labels),
+        "caughtCount": len(caught), "expectedCount": len(labels), "missDetails": miss_details,
         "amounts": amounts, "exactAmountCount": sum(1 for t in caught if amounts[t]["exact"]),
         "citations": {"total": len(quotes), "verified": verified},
         "scoredAt": datetime.now(timezone.utc),

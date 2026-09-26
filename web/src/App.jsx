@@ -74,7 +74,7 @@ function Bar({ label, score, tone }) {
     <div className="bar-row">
       <span className="mono">{label}</span>
       <div className="bar"><div className={'fill ' + tone} style={{ width: s.pct + '%' }} /></div>
-      <span className="mono">{score}</span>
+      <span className="mono">{s.text}</span>
     </div>
   )
 }
@@ -83,21 +83,22 @@ function bars(rulebook) {
   const asc = [...rulebook].sort((a, b) => a.version - b.version)
   const latest = asc[asc.length - 1]
   const prev = asc[asc.length - 2]
-  return { latest, prev, before: latest?.provenance.scoreBefore, after: latest?.provenance.scoreAfter }
+  const old = new Set((prev?.rules || []).map((r) => r.type))
+  const added = (latest?.rules || []).filter((r) => !old.has(r.type))
+  return { latest, prev, added, before: latest?.provenance.scoreBefore, after: latest?.provenance.scoreAfter }
 }
 
-function Score({ rulebook, findings, onClose }) {
-  const { latest, before, after } = bars(rulebook)
+function Score({ rulebook, onClose }) {
+  const { latest, added, before, after } = bars(rulebook)
   if (!latest) return <Overlay title="Score & rulebook" onClose={onClose}><p className="muted">No rulebook yet.</p></Overlay>
-  const missed = findings.find((f) => f.ruleVersion >= latest.version)
   const p = latest.provenance
   return (
     <Overlay title="Score & rulebook" onClose={onClose}>
       <Bar label={`v${latest.version - 1}`} score={before} tone="grey" />
       <Bar label={`v${latest.version}`} score={after} tone="teal" />
       <dl className="facts">
-        {missed && <><dt>Missed</dt><dd>{missed.title} ({money(missed.amount)})</dd></>}
-        <dt>Rule proposed</dt><dd>{latest.rules.map((r) => r.instruction).join(' ')}</dd>
+        {added.length > 0 && <><dt>Missed</dt><dd>{added.map((r) => r.type.replace(/_/g, ' ')).join(', ')}</dd></>}
+        <dt>Rule proposed</dt><dd>{(added.length ? added : latest.rules).map((r) => r.instruction).join(' ')}</dd>
         <dt>Why it was kept</dt><dd>{p.reason} <span className="muted">({p.decision})</span></dd>
       </dl>
       <p className="footer">Score = findings matched against labeled outcomes, checked before and after every rule change.</p>
@@ -108,23 +109,24 @@ function Score({ rulebook, findings, onClose }) {
 const AXIS_START = Date.UTC(2026, 4, 1)
 const AXIS_END = Date.UTC(2026, 9, 1)
 const MONTHS = ['May', 'Jun', 'Jul', 'Aug', 'Sep']
-const pos = (s) => Math.min(100, Math.max(0, ((Date.parse(s) - AXIS_START) / (AXIS_END - AXIS_START)) * 100))
+const pos = (s, dflt) => { const t = s ? Date.parse(s) : NaN; return Number.isNaN(t) ? dflt : Math.min(100, Math.max(0, ((t - AXIS_START) / (AXIS_END - AXIS_START)) * 100)) }
 
 function Timeline({ items }) {
   const rows = [...new Set(items.map((i) => i.row))]
-  const newest = items.filter((i) => i.row === 'estimate' && !i.superseded).sort((a, b) => b.validFrom.localeCompare(a.validFrom))[0]
+  const rowName = (r) => r.replace(/_/g, ' ')
+  const newest = items.filter((i) => i.row.startsWith('estimate') && !i.superseded).sort((a, b) => b.validFrom.localeCompare(a.validFrom))[0]
   return (
     <div className="card">
       <h3>Timeline</h3>
       <div className="axis">{MONTHS.map((m) => <span key={m}>{m}</span>)}</div>
       {rows.map((row) => (
-        <div className="trow" key={row}>
+        <div key={row}><div className="rname muted">{rowName(row)}</div><div className="trow">
           {items.filter((i) => i.row === row).map((i) => {
-            const l = pos(i.validFrom), r = pos(i.validTo)
+            const l = pos(i.validFrom, 0), r = pos(i.validTo, 100)
             const cls = 'seg' + (i.superseded ? ' sup' : '') + (i === newest ? ' new' : '')
             return <div key={i.label} className={cls} style={{ left: l + '%', width: Math.max(r - l, 4) + '%' }} title={`${i.label} · ${i.validFrom} → ${i.validTo}`}><span>{i.label}</span></div>
           })}
-        </div>
+        </div></div>
       ))}
     </div>
   )
@@ -172,8 +174,7 @@ function Workspace() {
   const { header, totals, timeline, findings, latestRun } = w
   const steps = [...(latestRun?.steps || []), ...liveSteps]
   const codeFinding = findings.find((f) => f.decisionId)
-  const { latest, before, after } = bars(rulebook)
-  const missed = latest && findings.find((f) => f.ruleVersion >= latest.version)
+  const { latest, added, before, after } = bars(rulebook)
 
   return (
     <>
@@ -227,7 +228,7 @@ function Workspace() {
               <h3>Score & rulebook</h3>
               <Bar label={`v${latest.version - 1}`} score={before} tone="grey" />
               <Bar label={`v${latest.version}`} score={after} tone="teal" />
-              {missed && <p className="muted small">Missed: {missed.title}.</p>}
+              {added.length > 0 && <p className="muted small">Missed: {added.map((r) => r.type.replace(/_/g, ' ')).join(', ')}.</p>}
               <p className="muted small">Kept: {latest.provenance.decision}, {latest.provenance.reason.split('.')[0].toLowerCase()}.</p>
               <button className="link" onClick={(e) => { e.stopPropagation(); setScoreOpen(true) }}>Open →</button>
             </div>
@@ -235,7 +236,7 @@ function Workspace() {
         </aside>
       </main>
       {replayId && <Replay decisionId={replayId} onClose={() => setReplayId(null)} />}
-      {scoreOpen && <Score rulebook={rulebook} findings={findings} onClose={() => setScoreOpen(false)} />}
+      {scoreOpen && <Score rulebook={rulebook} onClose={() => setScoreOpen(false)} />}
     </>
   )
 }

@@ -58,6 +58,34 @@ python scripts/run_review.py --claim PK-20719 --db claimmemory   # review, then 
 - `scorer.py`: `score_run(runId)` compares a run's findings with the labels and stores the result in
   `scores`. It is not a tool and the agent cannot reach it.
 
+## Self-improving rulebook (Phase 4)
+
+```bash
+python scripts/improve.py --claim PK-20719 --db claimmemory   # review if needed, propose, re-run, decide
+```
+
+- `improve.py`: `improve_rulebook(trainingClaimId, runId)` builds a miss report from the scorer's output,
+  asks a separate Claude call for one rule (strict JSON, validated), creates a *candidate* rulebook
+  version, re-runs the review on the training claim with it, and promotes it only if the caught count
+  strictly increases, nothing caught is lost, false positives don't grow and amounts stay exact.
+  Otherwise the version is `rejected` with a reason. Provenance is stored on the version header.
+- `rulebook.py`: versions live in the `rules` collection (one doc per rule plus an optional
+  `docType: "version"` header with status and provenance). A run pins the version active when it started
+  (`agent_runs.rulebookVersion`), so a candidate can be tested while the old version stays active.
+
+## Deploy the backend (Render)
+
+1. Push the repo to GitHub. In Render: New > Blueprint, pick the repo (it reads `render.yaml`).
+2. Set the secrets when prompted: `MONGODB_URI`, `VOYAGE_API_KEY`, `ANTHROPIC_API_KEY`, and `CORS_ORIGINS`
+   (your frontend's URL).
+3. In Atlas > Network Access, allow Render's outbound IPs (or 0.0.0.0/0 for a demo).
+4. Once, against production: `python scripts/create_indexes.py --db claimmemory` and
+   `python scripts/seed.py --db claimmemory` (run locally with the production `MONGODB_URI`).
+5. Check `https://<service>.onrender.com/health`.
+
+Keep it to one always-on instance. Uploaded files and manifest edits live on the instance's disk and reset
+on redeploy (documents already ingested stay in MongoDB).
+
 ## Run
 
 ```bash

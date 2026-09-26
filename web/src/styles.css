@@ -58,3 +58,4 @@ input[type=email],input[type=password] { padding:9px 10px; border:1px solid var(
 .facts { margin:16px 0; } .facts dt { font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin-top:12px; } .facts dd { margin:2px 0 0; }
 .footer { font-size:13px; color:var(--muted); border-top:1px solid var(--line); padding-top:12px; margin:0; }
 @media (max-width:900px) { .grid { grid-template-columns:1fr; } }
+.rname { font-size:12px; text-transform:capitalize; margin-bottom:2px; }

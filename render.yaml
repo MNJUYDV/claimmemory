@@ -1,0 +1,26 @@
+# Render Blueprint: one always-on web service.
+# It must stay a single instance: the event bus, the per-claim runner and the change-stream listener
+# live in this process. Use a paid plan: free instances sleep, which would stop the listener and streams.
+services:
+  - type: web
+    name: claimmemory-api
+    runtime: python
+    plan: starter
+    # region: pick the one closest to your Atlas cluster (every tool call hits the database)
+    numInstances: 1
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: DB_NAME
+        value: claimmemory
+      - key: MONGODB_URI
+        sync: false        # set in the Render dashboard
+      - key: VOYAGE_API_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false        # your Vercel URL, e.g. https://claimmemory.vercel.app

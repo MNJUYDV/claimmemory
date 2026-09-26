@@ -19,6 +19,7 @@ import jsonschema
 import dataparse
 import db
 import embeddings
+import rulebook
 from constants import OPEN_ENDED, parse_dt
 
 log = logging.getLogger("claimmemory.tools")
@@ -80,14 +81,21 @@ def _require_run(ctx):
         raise ToolError(f"this run is {run.get('status')!r}, not running")
 
 
-def _authorized_types(ctx) -> set:
-    """Finding types the claim insurer's current rulebook has an active rule for."""
+def _run_rules(ctx):
+    """(insurer, version, rules) for this run: the rulebook version pinned when the run started."""
     claim = _coll("claims").find_one({"claimId": ctx.claimId}, {"insurer": 1})
-    rules = list(_coll("rules").find({"insurer": claim["insurer"]})) if claim else []
-    if not rules:
-        return set()
-    version = max(r["version"] for r in rules)
-    return {r["type"] for r in rules if r["version"] == version and r.get("active", True)}
+    if not claim:
+        raise ToolError("claim not found")
+    run = _coll("agent_runs").find_one({"runId": ctx.runId, "claimId": ctx.claimId}, {"rulebookVersion": 1})
+    version = (run or {}).get("rulebookVersion")
+    if version is None:
+        version = rulebook.active_version(claim["insurer"])
+    return claim["insurer"], version, ([] if version is None else rulebook.rules_for(claim["insurer"], version))
+
+
+def _authorized_types(ctx) -> set:
+    """Finding types the run's rulebook version has an active rule for."""
+    return {r["type"] for r in _run_rules(ctx)[2]}
 
 
 def _numbers(text):
@@ -177,16 +185,9 @@ def get_claim_state(ctx):
 
 
 def get_rules(ctx):
-    claim = _coll("claims").find_one({"claimId": ctx.claimId})
-    if not claim:
-        raise ToolError("claim not found")
-    rules = list(_coll("rules").find({"insurer": claim["insurer"]}))
-    if not rules:
-        return {"insurer": claim["insurer"], "version": None, "rules": []}
-    version = max(r["version"] for r in rules)
-    return _jsonable({"insurer": claim["insurer"], "version": version, "rules": [
-        {k: r[k] for k in ("id", "type", "instruction", "computeRule")}
-        for r in rules if r["version"] == version and r.get("active", True)]})
+    insurer, version, rules = _run_rules(ctx)
+    return _jsonable({"insurer": insurer, "version": version, "rules": [
+        {k: r[k] for k in ("id", "type", "instruction", "computeRule")} for r in rules]})
 
 
 def list_documents(ctx, asOf=None):
@@ -385,6 +386,18 @@ def compute_amount(ctx, rule, inputs):
 
 # ---------- findings ----------
 
+def _decision_that_missed(claim_id):
+    """The latest decision whose estimate left an endorsement on file uncited, so a missing_coverage
+    finding can link to its replay even when the agent did not pass decisionId."""
+    for d in _coll("decisions").find({"claimId": claim_id}).sort("madeAt", -1):
+        cited = set(d["citedFilenames"])
+        if _coll("documents").find_one({"claimId": claim_id, "type": "endorsement",
+                                        "receivedAt": {"$lte": d["madeAt"]},
+                                        "filename": {"$nin": list(cited)}}):
+            return d["_id"]
+    return None
+
+
 def upsert_finding(ctx, type, title, detail, calcId, evidence, decisionId=None):
     _require_run(ctx)
     if type not in _authorized_types(ctx):
@@ -411,6 +424,8 @@ def upsert_finding(ctx, type, title, detail, calcId, evidence, decisionId=None):
             {"_id": decisionId, "claimId": ctx.claimId}):
         raise ToolError(f"unknown decision {decisionId!r} for this claim")
 
+    if decisionId is None and type == "missing_coverage":
+        decisionId = _decision_that_missed(ctx.claimId)
     finding_id = f"finding_{ctx.claimId}_{type}"
     doc = db.prepare_doc("findings", {
         "claimId": ctx.claimId, "runId": ctx.runId, "type": type, "title": title, "detail": detail,

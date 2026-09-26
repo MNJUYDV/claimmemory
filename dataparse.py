@@ -3,13 +3,14 @@
 The single source of truth for recomputing every planted-error amount in code.
 """
 import json
+import os
 import re
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
-DATA_DIR = Path(__file__).resolve().parent / "data"
+DATA_DIR = Path(os.environ.get("CLAIMMEMORY_DATA_DIR") or Path(__file__).resolve().parent / "data")
 ESTIMATE_COLUMNS = ("line_id", "description", "material", "labor", "labor_depreciation")
 CODE_UPGRADE_COLUMNS = ("item_id", "description", "amount")
 
