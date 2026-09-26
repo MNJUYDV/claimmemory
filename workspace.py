@@ -1,7 +1,10 @@
 """Read models for the UI. Reads only through db.get_agent_collection(): labels and scores are unreachable."""
+import json
+import re
 from datetime import datetime, timezone
 from decimal import Decimal
 
+import dataparse
 import db
 import ingest
 import rulebook
@@ -60,16 +63,82 @@ def header(claim: dict) -> dict:
     return {"family": family, "lossType": claim["lossType"], "insurer": claim["insurer"], "day": day}
 
 
+def _header_date(text: str, key: str = "Date"):
+    m = re.search(rf"^{key}: (\d{{4}}-\d{{2}}-\d{{2}})", text, re.M)
+    return m.group(1) if m else None
+
+
+def _month_span(memo: str):
+    m = re.search(r"months? (\d+)(?:\s*[-\u2013]\s*(\d+))?", memo or "", re.I)
+    return (int(m.group(1)), int(m.group(2) or m.group(1))) if m else None
+
+
 def timeline(claim_id: str) -> list:
-    types = {d["filename"]: d["type"] for d in _coll("documents").find({"claimId": claim_id}, {"filename": 1, "type": 1})}
-    rows = []
-    for f in _coll("facts").find({"claimId": claim_id}).sort("validFrom", 1):
-        row = TIMELINE_ROW.get(types.get(f["sourceFilename"], ingest.doc_type(f["sourceFilename"])))
-        if row:
-            rows.append({"row": row, "label": f["label"], "validFrom": _iso(f["validFrom"]),
-                         "validTo": _iso(f["validTo"]), "superseded": f.get("supersededBy") is not None,
-                         "sourceFilename": f["sourceFilename"]})
-    return rows
+    """One bar per (row, source document), built from the documents and the data parsed out of them.
+    Not from agent facts, so it is the same however many times a claim is reviewed."""
+    docs = list(_coll("documents").find({"claimId": claim_id}).sort("receivedAt", 1))
+    bars = {}  # (row, filename) -> bar
+
+    def add(row, filename, label, valid_from, valid_to=None, superseded=False, note=None):
+        bar = {"row": row, "label": label, "validFrom": valid_from, "validTo": valid_to,
+               "superseded": superseded, "sourceFilename": filename}
+        if note:
+            bar["note"] = note
+        bars.setdefault((row, filename), bar)
+
+    def chain(row, entries):
+        """entries: [(date, filename, label)] oldest first; each ends where the next begins."""
+        entries = list({e[1]: e for e in entries}.values())  # one per filename
+        for i, (when, filename, label) in enumerate(entries):
+            nxt = entries[i + 1][0] if i + 1 < len(entries) else None
+            add(row, filename, label, when, nxt, superseded=nxt is not None)
+
+    estimates, notices, renewal, policy_doc = [], [], None, None
+    for d in docs:
+        text, name, kind = d.get("text") or "", d["filename"], d["type"]
+        received = _iso(d["receivedAt"])
+        try:
+            if kind == "policy":
+                policy_doc = d
+                renewal = renewal or dataparse.parse_effective_from_text(text).isoformat()
+            elif kind == "endorsement":
+                eff = dataparse.parse_effective_from_text(text).isoformat()
+                limit = dataparse.parse_endorsement_limit_text(text)
+                add("policy", name, f"Code-upgrade coverage, ${limit:,.0f}", eff,
+                    note=f"added to file {received}")
+                if "policy renewal date" in text:
+                    renewal = eff  # the current term starts at the renewal
+            elif kind == "estimate":
+                est = dataparse.parse_estimate_text(text)
+                total = dataparse.parse_money(est.header["Total"].lstrip("$"))
+                estimates.append((est.header["Date written"], name,
+                                  f"Estimate {est.header['Version']} \u00b7 ${total:,.0f}"))
+            elif kind == "email":
+                m = re.search(r"through month (\d+) at \$([\d,]+) per month", text)
+                if m:
+                    add("promises", name, f"Living expenses promised to month {m.group(1)}",
+                        _header_date(text) or received)
+            elif kind == "notice":
+                m = re.search(r"ALE payments end after month (\d+)", text)
+                if m:
+                    notices.append((_header_date(text) or received, name, f"Cut off after month {m.group(1)}"))
+            elif kind == "payments":
+                ale = [p for p in json.loads(text) if p.get("category") == "ale"]
+                if ale:
+                    ale.sort(key=lambda p: p["paidAt"])
+                    spans = [s for s in (_month_span(p.get("memo")) for p in ale) if s]
+                    last = max((s[1] for s in spans), default=None)
+                    first = min((s[0] for s in spans), default=1)
+                    label = f"Paid, months {first}\u2013{last}" if last else "Paid"
+                    add("living_expenses", name, label, ale[0]["paidAt"])
+        except (ValueError, KeyError, TypeError, json.JSONDecodeError):
+            continue  # a document that does not parse gets no bar rather than a wrong one
+    if renewal and policy_doc:
+        add("policy", policy_doc["filename"], "Policy in force", renewal)
+    chain("estimates", sorted(estimates))
+    chain("living_expenses", sorted(notices))
+    order = {"policy": 0, "promises": 1, "estimates": 2, "living_expenses": 3}
+    return sorted(bars.values(), key=lambda b: (order[b["row"]], b["validFrom"]))
 
 
 def findings(claim_id: str, resolved: bool = False) -> list:
