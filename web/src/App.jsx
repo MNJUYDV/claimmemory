@@ -79,27 +79,48 @@ function Bar({ label, score, tone }) {
   )
 }
 
+// The rulebook screen is about what is in force: the newest ACTIVE version, compared with the version it
+// replaced. Rejected candidates are shown separately, never as "latest".
 function bars(rulebook) {
   const asc = [...rulebook].sort((a, b) => a.version - b.version)
-  const latest = asc[asc.length - 1]
-  const prev = asc[asc.length - 2]
-  const old = new Set((prev?.rules || []).map((r) => r.type))
-  const added = (latest?.rules || []).filter((r) => !old.has(r.type))
-  return { latest, prev, added, before: latest?.provenance.scoreBefore, after: latest?.provenance.scoreAfter }
+  const latest = [...asc].reverse().find((v) => v.status === 'active')
+  const prev = latest && [...asc].reverse().find((v) => v.version < latest.version && v.status !== 'rejected')
+  const known = new Set((prev?.rules || []).map((r) => r.type))
+  const added = (latest?.rules || []).filter((r) => !known.has(r.type))
+  const inForce = new Set((latest?.rules || []).map((r) => r.type))
+  const rejected = asc.filter((v) => v.status === 'rejected').reverse().map((v) => ({
+    ...v, tried: (v.rules || []).filter((r) => !inForce.has(r.type)),
+  }))
+  return { latest, prev, added, rejected, before: latest?.provenance?.scoreBefore, after: latest?.provenance?.scoreAfter }
 }
 
 function Score({ rulebook, onClose }) {
-  const { latest, added, before, after } = bars(rulebook)
+  const { latest, prev, added, rejected, before, after } = bars(rulebook)
   if (!latest) return <Overlay title="Score & rulebook" onClose={onClose}><p className="muted">No rulebook yet.</p></Overlay>
-  const p = latest.provenance
+  const p = latest.provenance || {}
   return (
     <Overlay title="Score & rulebook" onClose={onClose}>
-      <Bar label={`v${latest.version - 1}`} score={before} tone="grey" />
+      {prev && <Bar label={`v${prev.version}`} score={before} tone="grey" />}
       <Bar label={`v${latest.version}`} score={after} tone="teal" />
       <dl className="facts">
         {added.length > 0 && <><dt>Missed</dt><dd>{added.map((r) => r.type.replace(/_/g, ' ')).join(', ')}</dd></>}
-        <dt>Rule proposed</dt><dd>{(added.length ? added : latest.rules).map((r) => r.instruction).join(' ')}</dd>
-        <dt>Why it was kept</dt><dd>{p.reason} <span className="muted">({p.decision})</span></dd>
+        <dt>Rule added in v{latest.version}</dt>
+        <dd>{added.length ? added.map((r) => <p key={r.type} className="rule">{r.instruction}</p>) : <span className="muted">No new rule in this version.</span>}</dd>
+        <dt>Why it was kept</dt><dd>{p.reason || 'No reason recorded.'} {p.decision && <span className="muted">({p.decision})</span>}</dd>
+        {rejected.length > 0 && (
+          <>
+            <dt>Tried and rejected</dt>
+            <dd>
+              {rejected.map((v) => (
+                <div key={v.version} className="rejected">
+                  <b className="mono">v{v.version}</b> <span className="muted">{parseScore(v.provenance?.scoreBefore).text} → {parseScore(v.provenance?.scoreAfter).text}</span>
+                  <div className="muted small">{v.provenance?.reason || 'Rejected.'}</div>
+                  {v.tried.map((r) => <p key={r.type} className="rule muted">{r.instruction}</p>)}
+                </div>
+              ))}
+            </dd>
+          </>
+        )}
       </dl>
       <p className="footer">Score = findings matched against labeled outcomes, checked before and after every rule change.</p>
     </Overlay>
@@ -225,7 +246,7 @@ function Workspace() {
   const resolved = w.resolvedFindings || []
   const steps = [...(latestRun?.steps || []), ...liveSteps]
   const codeFinding = findings.find((f) => f.decisionId)
-  const { latest, added, before, after } = bars(rulebook)
+  const { latest, prev, added, before, after } = bars(rulebook)
 
   return (
     <>
@@ -273,13 +294,13 @@ function Workspace() {
               <button className="link" onClick={() => setReplayId(codeFinding.decisionId)}>Open →</button>
             </div>
           )}
-          {latest && (
+          {latest && latest.provenance?.decision && (
             <div className="card click" onClick={() => setScoreOpen(true)}>
               <h3>Score & rulebook</h3>
-              <Bar label={`v${latest.version - 1}`} score={before} tone="grey" />
+              {prev && <Bar label={`v${prev.version}`} score={before} tone="grey" />}
               <Bar label={`v${latest.version}`} score={after} tone="teal" />
               {added.length > 0 && <p className="muted small">Missed: {added.map((r) => r.type.replace(/_/g, ' ')).join(', ')}.</p>}
-              <p className="muted small">Kept: {latest.provenance.decision}, {latest.provenance.reason.split('.')[0].toLowerCase()}.</p>
+              <p className="muted small">Kept: {latest.provenance.decision}{latest.provenance.reason ? ', ' + latest.provenance.reason.split('.')[0].toLowerCase() : ''}.</p>
               <button className="link" onClick={(e) => { e.stopPropagation(); setScoreOpen(true) }}>Open →</button>
             </div>
           )}
