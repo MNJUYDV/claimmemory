@@ -1,0 +1,110 @@
+{
+  "HO-48213": {
+    "findings": [
+      {
+        "type": "labor_depreciation",
+        "amount": 11300,
+        "evidence": [
+          {
+            "filename": "policy.txt",
+            "quote": "Labor is not subject to depreciation."
+          },
+          {
+            "filename": "estimate_v2.txt",
+            "quote": "Depreciation method: actual cash value; depreciation applied to material and labor"
+          },
+          {
+            "filename": "estimate_v3.txt",
+            "quote": "Depreciation method: actual cash value; depreciation applied to material and labor"
+          }
+        ]
+      },
+      {
+        "type": "missing_coverage",
+        "amount": 18700,
+        "evidence": [
+          {
+            "filename": "endorsement_code_upgrade.txt",
+            "quote": "Limit of liability: $25,000"
+          },
+          {
+            "filename": "contractor_bid.txt",
+            "quote": "Code upgrade subtotal: $18,700.00"
+          },
+          {
+            "filename": "estimate_v2.txt",
+            "quote": "Relied on: policy.txt; estimate_v1.txt; contractor_bid.txt"
+          },
+          {
+            "filename": "estimate_v3.txt",
+            "quote": "Relied on: policy.txt; estimate_v2.txt; contractor_bid.txt"
+          }
+        ]
+      },
+      {
+        "type": "unpaid_ale",
+        "amount": 8400,
+        "evidence": [
+          {
+            "filename": "adjuster_email_1.txt",
+            "quote": "through month 12 at $1,400 per month"
+          },
+          {
+            "filename": "ale_notice.txt",
+            "quote": "ALE payments end after month 6"
+          }
+        ]
+      }
+    ]
+  },
+  "PK-20719": {
+    "findings": [
+      {
+        "type": "labor_depreciation",
+        "amount": 4200,
+        "evidence": [
+          {
+            "filename": "policy.txt",
+            "quote": "Labor is not subject to depreciation."
+          },
+          {
+            "filename": "estimate_v2.txt",
+            "quote": "Depreciation method: actual cash value; depreciation applied to material and labor"
+          }
+        ]
+      },
+      {
+        "type": "missing_coverage",
+        "amount": 6900,
+        "evidence": [
+          {
+            "filename": "endorsement_code_upgrade.txt",
+            "quote": "Limit of liability: $25,000"
+          },
+          {
+            "filename": "contractor_bid.txt",
+            "quote": "Code upgrade subtotal: $6,900.00"
+          },
+          {
+            "filename": "estimate_v2.txt",
+            "quote": "Relied on: policy.txt; estimate_v1.txt; contractor_bid.txt"
+          }
+        ]
+      },
+      {
+        "type": "unpaid_ale",
+        "amount": 2800,
+        "evidence": [
+          {
+            "filename": "adjuster_email_1.txt",
+            "quote": "through month 6 at $1,400 per month"
+          },
+          {
+            "filename": "ale_notice.txt",
+            "quote": "ALE payments end after month 4"
+          }
+        ]
+      }
+    ]
+  }
+}

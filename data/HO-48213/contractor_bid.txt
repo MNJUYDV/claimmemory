@@ -1,0 +1,19 @@
+CONTRACTOR BID
+Contractor: Ridgeway Restoration LLC
+Claim: HO-48213
+Date: 2026-06-20
+
+BASE REPAIR SCOPE
+Base scope subtotal: $54,000.00 (matches estimate v1 line items)
+
+Code upgrade items
+item_id | description | amount
+CU1 | Electrical service panel upgrade to current code | 6400.00
+CU2 | Arc-fault (AFCI) breaker retrofit, kitchen and adjoining circuits | 3900.00
+CU3 | Type X fire-rated gypsum board, kitchen walls and ceiling | 4300.00
+CU4 | Interconnected smoke and CO alarm system | 1150.00
+CU5 | Kitchen makeup-air ventilation for range hood | 2950.00
+
+Code upgrade subtotal: $18,700.00
+
+Total bid: $72,700.00

@@ -1,0 +1,40 @@
+ESTIMATE
+Claim: PK-20719
+Insured: Daniel and Grace Park
+Version: v2
+Date written: 2026-04-09
+Relied on: policy.txt; estimate_v1.txt; contractor_bid.txt
+Depreciation method: actual cash value; depreciation applied to material and labor
+Total: $34,500.00
+
+line_id | description | material | labor | labor_depreciation
+L001 | Demolition and debris removal | 157.75 | 815.36 | 0.00
+L002 | Haul-away and dumpster rental | 188.28 | 737.71 | 0.00
+L003 | Contents manipulation and pack-out | 803.99 | 859.73 | 261.56
+L004 | Water extraction from suppression | 295.14 | 488.11 | 148.50
+L005 | Structural drying equipment, per day | 452.88 | 460.37 | 140.06
+L006 | Soot and smoke residue cleaning, walls | 208.63 | 687.79 | 209.25
+L007 | Soot and smoke residue cleaning, ceiling | 305.31 | 615.68 | 187.31
+L008 | Seal and prime, smoke-damaged surfaces | 305.31 | 576.85 | 175.50
+L009 | Drywall 1/2 inch, hang and finish, walls | 371.47 | 338.35 | 102.94
+L010 | Drywall 1/2 inch, hang and finish, ceiling | 615.71 | 0.00 | 0.00
+L011 | Insulation, batt, exterior wall | 585.18 | 1015.04 | 308.81
+L012 | Framing repair, wall studs | 498.68 | 970.66 | 295.30
+L013 | Framing repair, ceiling joists | 1012.62 | 1059.41 | 322.30
+L014 | Subfloor replacement, plywood | 284.95 | 909.65 | 276.73
+L015 | Vinyl plank flooring | 839.60 | 1053.85 | 320.60
+L016 | Flooring underlayment | 900.66 | 837.54 | 254.80
+L017 | Baseboard trim, 5 inch | 376.54 | 915.19 | 278.42
+L018 | Crown molding, paint grade | 982.07 | 0.00 | 0.00
+L019 | Interior door, pre-hung, replace | 427.43 | 0.00 | 0.00
+L020 | Door casing and hardware | 218.80 | 954.01 | 290.23
+L021 | Window, vinyl double-hung, replace | 758.18 | 382.71 | 0.00
+L022 | Window trim and sill | 630.97 | 793.16 | 241.29
+L023 | Base cabinets, replace | 605.53 | 1003.93 | 0.00
+L024 | Wall cabinets, replace | 641.15 | 0.00 | 0.00
+L025 | Cabinet hardware | 284.95 | 0.00 | 0.00
+L026 | Countertop, quartz, fabricate and install | 437.61 | 371.62 | 0.00
+L027 | Backsplash tile, ceramic | 223.89 | 859.72 | 261.54
+L028 | Sink, stainless, reset | 595.35 | 909.64 | 0.00
+L029 | Faucet, replace | 941.37 | 948.47 | 0.00
+L030 | Range hood, replace | 575.00 | 410.45 | 124.86

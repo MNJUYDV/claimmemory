@@ -1,0 +1,29 @@
+[
+  {
+    "paymentId": "PK-20719-P1",
+    "claimId": "PK-20719",
+    "paidAt": "2026-03-05T10:00:00-06:00",
+    "amount": 15000,
+    "category": "dwelling",
+    "payee": "Daniel and Grace Park",
+    "memo": "Initial dwelling advance"
+  },
+  {
+    "paymentId": "PK-20719-P2",
+    "claimId": "PK-20719",
+    "paidAt": "2026-04-15T10:00:00-06:00",
+    "amount": 19500,
+    "category": "dwelling",
+    "payee": "Daniel and Grace Park",
+    "memo": "Dwelling payment on estimate v2"
+  },
+  {
+    "paymentId": "PK-20719-P3",
+    "claimId": "PK-20719",
+    "paidAt": "2026-05-15T10:00:00-06:00",
+    "amount": 5600,
+    "category": "ale",
+    "payee": "Daniel and Grace Park",
+    "memo": "ALE months 1-4 (prepaid)"
+  }
+]

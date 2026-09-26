@@ -1,0 +1,17 @@
+CONTRACTOR BID
+Contractor: Cobalt Creek Builders
+Claim: PK-20719
+Date: 2026-03-10
+
+BASE REPAIR SCOPE
+Base scope subtotal: $29,800.00 (matches estimate v1 line items)
+
+Code upgrade items
+item_id | description | amount
+CU1 | Electrical service panel upgrade to current code | 3200.00
+CU2 | Type X fire-rated gypsum board, garage-house separation wall | 2100.00
+CU3 | Interconnected smoke and CO alarm system | 1600.00
+
+Code upgrade subtotal: $6,900.00
+
+Total bid: $36,700.00

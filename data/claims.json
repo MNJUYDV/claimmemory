@@ -1,0 +1,24 @@
+[
+  {
+    "claimId": "HO-48213",
+    "insurer": "Harborline Mutual",
+    "insuredName": "Maria Alvarez",
+    "propertyAddress": "77 Copperleaf Lane, Alderbrook, ST 00000",
+    "policyNumber": "HM-HO-0071843",
+    "lossDate": "2026-05-30T00:00:00-05:00",
+    "lossType": "fire",
+    "status": "open",
+    "role": "live"
+  },
+  {
+    "claimId": "PK-20719",
+    "insurer": "Harborline Mutual",
+    "insuredName": "Daniel and Grace Park",
+    "propertyAddress": "1184 Marlow Terrace, Alderbrook, ST 00000",
+    "policyNumber": "HM-HO-0059172",
+    "lossDate": "2026-02-14T00:00:00-06:00",
+    "lossType": "fire",
+    "status": "closed",
+    "role": "past"
+  }
+]

@@ -1,0 +1,36 @@
+ESTIMATE
+Claim: PK-20719
+Insured: Daniel and Grace Park
+Version: v1
+Date written: 2026-03-02
+Relied on: policy.txt
+Depreciation method: actual cash value; depreciation applied to material only
+Total: $29,800.00
+
+line_id | description | material | labor | labor_depreciation
+L001 | Demolition and debris removal | 895.89 | 0.00 | 0.00
+L002 | Haul-away and dumpster rental | 424.37 | 481.57 | 0.00
+L003 | Contents manipulation and pack-out | 273.49 | 968.73 | 0.00
+L004 | Water extraction from suppression | 490.38 | 1041.53 | 0.00
+L005 | Structural drying equipment, per day | 429.09 | 711.15 | 0.00
+L006 | Soot and smoke residue cleaning, walls | 730.86 | 907.14 | 0.00
+L007 | Soot and smoke residue cleaning, ceiling | 603.55 | 531.97 | 0.00
+L008 | Seal and prime, smoke-damaged surfaces | 735.57 | 755.95 | 0.00
+L009 | Drywall 1/2 inch, hang and finish, walls | 466.81 | 677.56 | 0.00
+L010 | Drywall 1/2 inch, hang and finish, ceiling | 513.96 | 0.00 | 0.00
+L011 | Insulation, batt, exterior wall | 231.05 | 884.74 | 0.00
+L012 | Framing repair, wall studs | 914.75 | 0.00 | 0.00
+L013 | Framing repair, ceiling joists | 528.11 | 778.34 | 0.00
+L014 | Subfloor replacement, plywood | 466.80 | 806.34 | 0.00
+L015 | Vinyl plank flooring | 570.53 | 565.55 | 0.00
+L016 | Flooring underlayment | 183.89 | 1114.31 | 0.00
+L017 | Baseboard trim, 5 inch | 429.08 | 935.13 | 0.00
+L018 | Crown molding, paint grade | 707.27 | 582.35 | 0.00
+L019 | Interior door, pre-hung, replace | 268.76 | 767.14 | 0.00
+L020 | Door casing and hardware | 721.42 | 671.95 | 0.00
+L021 | Window, vinyl double-hung, replace | 877.02 | 0.00 | 0.00
+L022 | Window trim and sill | 188.60 | 408.77 | 0.00
+L023 | Base cabinets, replace | 188.60 | 358.37 | 0.00
+L024 | Wall cabinets, replace | 745.00 | 627.15 | 0.00
+L025 | Cabinet hardware | 556.39 | 996.72 | 0.00
+L026 | Countertop, quartz, fabricate and install | 268.76 | 817.54 | 0.00

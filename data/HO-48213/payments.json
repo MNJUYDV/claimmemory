@@ -1,0 +1,29 @@
+[
+  {
+    "paymentId": "HO-48213-P1",
+    "claimId": "HO-48213",
+    "paidAt": "2026-06-12T10:00:00-05:00",
+    "amount": 30000,
+    "category": "dwelling",
+    "payee": "Maria Alvarez",
+    "memo": "Initial dwelling advance"
+  },
+  {
+    "paymentId": "HO-48213-P2",
+    "claimId": "HO-48213",
+    "paidAt": "2026-07-25T10:00:00-05:00",
+    "amount": 31200,
+    "category": "dwelling",
+    "payee": "Maria Alvarez",
+    "memo": "Dwelling payment on estimate v2"
+  },
+  {
+    "paymentId": "HO-48213-P3",
+    "claimId": "HO-48213",
+    "paidAt": "2026-08-01T10:00:00-05:00",
+    "amount": 8400,
+    "category": "ale",
+    "payee": "Maria Alvarez",
+    "memo": "ALE months 1-6 (prepaid)"
+  }
+]

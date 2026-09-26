@@ -23,6 +23,17 @@ Safe to re-run. Waits up to 3 minutes for the vector indexes to become READY. If
 Atlas tier doesn't allow creating search indexes from the driver, it prints the index
 JSON to paste into the Atlas UI and exits non-zero.
 
+## Synthetic data (Phase 1)
+
+```bash
+python scripts/generate_data.py          # regenerate data/ (deterministic; asserts every planted amount)
+python scripts/seed.py --db claimmemory  # claims, payments, labels, rulebook v1 (idempotent; no documents)
+```
+
+Claims: `PK-20719` (past, labeled, training) and `HO-48213` (live). `data/labels.json` is ground
+truth for the scorer only; agent code must read collections via `db.get_agent_collection`, which
+refuses `labels` and `scores`. `dataparse.py` recomputes every amount from the files.
+
 ## Run
 
 ```bash

@@ -27,7 +27,8 @@ COLLECTION_NAMES = (
 
 @lru_cache(maxsize=1)
 def get_client() -> MongoClient:
-    return MongoClient(config.MONGODB_URI, serverSelectionTimeoutMS=5000, tlsCAFile=certifi.where())
+    return MongoClient(config.MONGODB_URI, serverSelectionTimeoutMS=5000, tlsCAFile=certifi.where(),
+                       tz_aware=True)
 
 
 def get_db() -> Database:
@@ -48,7 +49,8 @@ def __getattr__(name: str) -> Collection:
 
 
 # Date fields we store, and the open-ended ones that default to OPEN_ENDED.
-DATE_FIELDS = ("receivedAt", "validFrom", "validTo", "effectiveFrom", "effectiveTo")
+DATE_FIELDS = ("receivedAt", "validFrom", "validTo", "effectiveFrom", "effectiveTo",
+               "lossDate", "paidAt", "createdAt")
 OPEN_ENDED_FIELDS = {"policy_clauses": "effectiveTo", "facts": "validTo"}
 
 
@@ -74,3 +76,19 @@ def prepare_doc(collection: str, doc: dict) -> dict:
 def insert_one(collection: str, doc: dict):
     prepared = prepare_doc(collection, doc)  # validate before touching the driver
     return get_collection(collection).insert_one(prepared)
+
+
+def upsert_one(collection: str, filter: dict, doc: dict):
+    """Replace-or-insert the document matching filter. Idempotent; validates dates first."""
+    prepared = prepare_doc(collection, doc)
+    return get_collection(collection).replace_one(filter, prepared, upsert=True)
+
+
+# Ground truth. Only the scorer may read these; agent code must use get_agent_collection().
+SCORER_ONLY = frozenset({"labels", "scores"})
+
+
+def get_agent_collection(name: str) -> Collection:
+    if name in SCORER_ONLY:
+        raise PermissionError(f"collection {name!r} is scorer-only and not readable by the agent")
+    return get_collection(name)
