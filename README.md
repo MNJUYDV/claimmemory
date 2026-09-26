@@ -42,6 +42,22 @@ refuses `labels` and `scores`. `dataparse.py` recomputes every amount from the f
   supplies either. Amounts come only from `compute_amount`; quotes must be verbatim; errors are JSON.
 - Tools read data only through `db.get_agent_collection()`, which refuses `labels` and `scores`.
 
+## Agent, run log and scorer (Phase 3)
+
+```bash
+python scripts/seed.py --db claimmemory
+python scripts/run_review.py --claim PK-20719 --db claimmemory   # review, then score
+```
+
+- `agent.py`: `run_agent(claimId)` ingests the claim (skipping `hold: true` files), then runs the Claude
+  tool-use loop (max 40 steps). Every step is saved to `agent_runs` (messages, tool calls with
+  inputs/outputs/timing, status). `resume_run(runId)` continues a failed or interrupted run.
+  Statuses: `running`, `completed`, `needs_review`, `failed`. Steps are published on `events.bus`.
+- Guardrail: `upsert_finding` refuses a finding type unless the insurer's current rulebook has an active
+  rule for it.
+- `scorer.py`: `score_run(runId)` compares a run's findings with the labels and stores the result in
+  `scores`. It is not a tool and the agent cannot reach it.
+
 ## Run
 
 ```bash
@@ -52,8 +68,10 @@ curl localhost:8000/health
 ## Test
 
 ```bash
-pytest                    # everything (uses DB claimmemory_test)
-pytest -m "not integration"   # no network
+pytest                        # offline + integration tests (DB claimmemory_test); skips llm tests
+pytest -m "not integration and not llm"   # no network
+pytest -m llm                 # real Claude reviews (slow, costs money)
+pytest -m "llm or not llm"    # everything
 ```
 
 Integration tests hit Atlas, Voyage and Anthropic and create vector indexes on `claimmemory_test`.

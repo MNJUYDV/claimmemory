@@ -80,6 +80,16 @@ def _require_run(ctx):
         raise ToolError(f"this run is {run.get('status')!r}, not running")
 
 
+def _authorized_types(ctx) -> set:
+    """Finding types the claim insurer's current rulebook has an active rule for."""
+    claim = _coll("claims").find_one({"claimId": ctx.claimId}, {"insurer": 1})
+    rules = list(_coll("rules").find({"insurer": claim["insurer"]})) if claim else []
+    if not rules:
+        return set()
+    version = max(r["version"] for r in rules)
+    return {r["type"] for r in rules if r["version"] == version and r.get("active", True)}
+
+
 def _numbers(text):
     return {Decimal(t.replace(",", "")) for t in _NUMBER_RE.findall(text)}
 
@@ -176,7 +186,7 @@ def get_rules(ctx):
     version = max(r["version"] for r in rules)
     return _jsonable({"insurer": claim["insurer"], "version": version, "rules": [
         {k: r[k] for k in ("id", "type", "instruction", "computeRule")}
-        for r in rules if r["version"] == version]})
+        for r in rules if r["version"] == version and r.get("active", True)]})
 
 
 def list_documents(ctx, asOf=None):
@@ -223,6 +233,12 @@ def record_fact(ctx, row, label, validFrom, sourceFilename, quote):
     _require_run(ctx)
     valid_from = _dt(validFrom, "validFrom")
     _check_quote(ctx, sourceFilename, quote)
+    identity = {"claimId": ctx.claimId, "row": row, "label": label, "validFrom": valid_from,
+                "sourceFilename": sourceFilename, "quote": quote}
+    same = _coll("facts").find_one(identity)  # re-running a step must not duplicate facts
+    if same:
+        return {"factId": same["_id"], "validFrom": same["validFrom"].isoformat(),
+                "validTo": same["validTo"].isoformat(), "duplicate": True}
     fact_id = _new_id("fact")
     doc = db.prepare_doc("facts", {
         "_id": fact_id, "claimId": ctx.claimId, "runId": ctx.runId, "row": row, "label": label,
@@ -352,6 +368,10 @@ def compute_amount(ctx, rule, inputs):
         amount, details = _CALCS[rule](ctx, inputs)
     except ValueError as e:  # parse failures from dataparse
         raise ToolError(str(e)) from None
+    prior = _coll("agent_runs").find_one({"runId": ctx.runId, "claimId": ctx.claimId}, {"calcs": 1})
+    for c in (prior or {}).get("calcs", []):
+        if c["rule"] == rule and c["inputs"] == inputs:  # same question, same answer
+            return {"calcId": c["calcId"], "amount": c["amount"], "details": c["details"]}
     calc_id = _new_id("calc")
     calc = _jsonable({"calcId": calc_id, "rule": rule, "inputs": inputs, "amount": amount,
                       "amountCents": _cents(amount), "details": details})
@@ -367,6 +387,8 @@ def compute_amount(ctx, rule, inputs):
 
 def upsert_finding(ctx, type, title, detail, calcId, evidence, decisionId=None):
     _require_run(ctx)
+    if type not in _authorized_types(ctx):
+        raise ToolError(f"no active rule authorizes {type} findings")
     run = _coll("agent_runs").find_one({"runId": ctx.runId, "claimId": ctx.claimId,
                                         "calcs.calcId": calcId}, {"calcs.$": 1})
     if not run:

@@ -11,14 +11,14 @@ from tools import TOOLS, ToolContext, call_tool
 # Reuse the fixtures and helpers from the main tools tests.
 from tests.test_phase2_tools import (  # noqa: F401
     DATA, MARIA, PARK, V2_AT, _compute_all, _finding_args, _poll, _v2_decision, fake_embed, fake_vec,
-    integ, maria, ok, park, seeded)
+    integ, maria, maria_plain, ok, park, seeded)
 
 REAL = "Labor is not subject to depreciation."
 FORGED = ToolContext(MARIA, "run_forged")
 
 
-def fact(ctx, quote, filename="policy.txt", valid_from=V2_AT):
-    return call_tool(ctx, "record_fact", {"row": "r", "label": "l", "validFrom": valid_from,
+def fact(ctx, quote, filename="policy.txt", valid_from=V2_AT, label="l"):
+    return call_tool(ctx, "record_fact", {"row": "r", "label": label, "validFrom": valid_from,
                                           "sourceFilename": filename, "quote": quote})
 
 
@@ -218,12 +218,12 @@ def test_forged_or_finished_run_cannot_write(maria):
 
 @integ
 def test_supersede_cycles_and_self_rejected(maria):
-    a = ok(fact(maria, REAL))["factId"]
-    b = ok(fact(maria, REAL))["factId"]  # same validFrom as a
+    a = ok(fact(maria, REAL, label="a"))["factId"]
+    b = ok(fact(maria, REAL, label="b"))["factId"]  # same validFrom as a
     ok(call_tool(maria, "supersede_fact", {"oldFactId": a, "newFactId": b}))
     assert "cycle" in call_tool(maria, "supersede_fact", {"oldFactId": b, "newFactId": a})["error"]
     assert "itself" in call_tool(maria, "supersede_fact", {"oldFactId": a, "newFactId": a})["error"]
-    c = ok(fact(maria, REAL))["factId"]
+    c = ok(fact(maria, REAL, label="c"))["factId"]
     assert "already superseded" in call_tool(maria, "supersede_fact", {"oldFactId": a, "newFactId": c})["error"]
     assert db.facts.find_one({"_id": b})["supersededBy"] is None
     assert db.facts.find_one({"_id": a})["validTo"] < OPEN_ENDED

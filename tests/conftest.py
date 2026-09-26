@@ -21,22 +21,29 @@ def _unusable(var):
     return not v or v == PLACEHOLDER
 
 
-def _needed_var(item):
+def _needed_vars(item):
+    if item.get_closest_marker("llm"):  # a review ingests (Voyage), stores (Atlas) and calls Claude
+        return ["MONGODB_URI", "VOYAGE_API_KEY", "ANTHROPIC_API_KEY"]
     name = item.name.lower()
     if "voyage" in name:
-        return "VOYAGE_API_KEY"
+        return ["VOYAGE_API_KEY"]
     if "claude" in name:
-        return "ANTHROPIC_API_KEY"
-    return "MONGODB_URI"
+        return ["ANTHROPIC_API_KEY"]
+    return ["MONGODB_URI"]
+
+
+def _uses_network(item):
+    return item.get_closest_marker("integration") or item.get_closest_marker("llm")
 
 
 def pytest_collection_modifyitems(config, items):
     for item in items:
-        if item.get_closest_marker("integration"):
-            var = _needed_var(item)
-            if _unusable(var):
-                item.add_marker(pytest.mark.skip(
-                    reason=f"{var} is missing or a placeholder; set it in .env"))
+        if _uses_network(item):
+            for var in _needed_vars(item):
+                if _unusable(var):
+                    item.add_marker(pytest.mark.skip(
+                        reason=f"{var} is missing or a placeholder; set it in .env"))
+                    break
 
 
 def _snapshot(client):
@@ -47,8 +54,7 @@ def _snapshot(client):
 @pytest.fixture(scope="session", autouse=True)
 def prod_db_untouched(request):
     """T0.13: the real claimmemory database must be unchanged after the suite."""
-    if _unusable("MONGODB_URI") or not any(
-            i.get_closest_marker("integration") for i in request.session.items):
+    if _unusable("MONGODB_URI") or not any(_uses_network(i) for i in request.session.items):
         yield
         return
     import db

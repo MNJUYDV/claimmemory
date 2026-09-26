@@ -50,7 +50,7 @@ def __getattr__(name: str) -> Collection:
 
 # Date fields we store, and the open-ended ones that default to OPEN_ENDED.
 DATE_FIELDS = ("receivedAt", "validFrom", "validTo", "effectiveFrom", "effectiveTo",
-               "lossDate", "paidAt", "createdAt", "updatedAt", "ingestedAt", "madeAt", "startedAt")
+               "lossDate", "paidAt", "createdAt", "updatedAt", "ingestedAt", "madeAt", "startedAt", "finishedAt", "scoredAt")
 OPEN_ENDED_FIELDS = {"policy_clauses": "effectiveTo", "facts": "validTo"}
 
 

@@ -55,15 +55,33 @@ def seeded():
     seeding.seed()
 
 
+def authorize_labor_depreciation():
+    """Rulebook v1 has no labor_depreciation rule, so upsert_finding refuses that type (Phase 3).
+    The Phase 2 tests exercise the tool mechanics for all three types, so they add the rule."""
+    from datetime import datetime, timezone
+    db.upsert_one("rules", {"id": "TEST-LD-001", "version": 1}, {
+        "id": "TEST-LD-001", "version": 1, "insurer": "Harborline Mutual", "type": "labor_depreciation",
+        "active": True, "computeRule": "labor_depreciation_refund", "instruction": "test rule",
+        "createdAt": datetime(2026, 1, 1, tzinfo=timezone.utc)})
+
+
 @pytest.fixture
-def maria(seeded, fake_embed):
+def maria_plain(seeded, fake_embed):
+    """Maria with the real rulebook v1 (no labor_depreciation rule)."""
     ingest.ingest_claim(MARIA, exclude=("estimate_v3.txt",))
     return runs.start_run(MARIA)
 
 
 @pytest.fixture
+def maria(maria_plain):
+    authorize_labor_depreciation()
+    return maria_plain
+
+
+@pytest.fixture
 def park(seeded, fake_embed):
     ingest.ingest_claim(PARK)
+    authorize_labor_depreciation()
     return runs.start_run(PARK)
 
 
@@ -227,7 +245,8 @@ def test_search_policy_respects_effective_dates_voyage(seeded, vector_indexes): 
 # ---------- integration: read tools ----------
 
 @integ
-def test_get_claim_state_and_rules(maria):
+def test_get_claim_state_and_rules(maria_plain):
+    maria = maria_plain
     s = ok(call_tool(maria, "get_claim_state", {}))
     assert s["claim"]["claimId"] == MARIA and s["claim"]["insurer"] == "Harborline Mutual"
     assert s["claim"]["lossDate"].startswith("2026-05-30")
