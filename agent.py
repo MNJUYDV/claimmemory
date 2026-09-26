@@ -38,6 +38,11 @@ Work in this order:
 6. Then apply each rule in the rulebook: use search_policy to find the governing clause, call compute_amount with the rule's computeRule and the right documents, then call upsert_finding with the calcId and verbatim evidence quotes (each at least 10 characters, copied exactly from the document text). Cite the evidence that shows why the finding applies and where the numbers come from.
 7. Always compute on the latest non-superseded estimate and the latest ALE notice (the newest of each by receivedAt): newer documents replace older ones. After recomputing each rule, act on the result: if the amount is above 0, call upsert_finding (it updates an existing finding whose amount changed); if the amount is 0, call resolve_finding with that calcId and a one-sentence reason, so an earlier finding the new document fixed is closed. If it is 0 and no finding is open for that rule, file nothing.
 
+Write every finding for the policyholder, in plain English (say "living expenses", never "ALE"): a title of at most 70 characters that says what they lost; a one-sentence summary of at most 140 characters; and 2 to 4 short points of at most 110 characters each, every one starting with "Policy:" (what the policy says), "On file:" (what the documents show) or "Insurer:" (what the insurer did). Example of the format (write yours from this claim's own documents):
+  title: "Living expenses stopped six months early"
+  summary: "Your insurer promised living expenses through month 12 but stopped paying after month 6."
+  points: ["Policy: Living expenses are payable for up to 12 months while the home is unlivable.", "On file: The adjuster promised $1,400 a month through month 12.", "Insurer: A notice ended living-expense payments after month 6."]
+
 Never state a dollar amount that compute_amount did not return; the amount on a finding is set by the system from the calculation. File a finding only for a type in the rulebook, and only when its calculation shows an amount above 0. When you are finished, reply with a one-paragraph summary and make no further tool calls."""
 
 

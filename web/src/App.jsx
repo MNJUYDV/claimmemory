@@ -205,28 +205,13 @@ function Workspace() {
           <div>
             <h3>Findings</h3>
             {findings.length === 0 && <p className="muted">No findings yet</p>}
-            {findings.map((f, i) => (
-              <div key={i} className={'card finding' + (f.decisionId ? ' click' : '')} onClick={() => f.decisionId && setReplayId(f.decisionId)}>
-                <div className="fhead">
-                  <b>{f.title}</b>
-                  <span className="mono amt">{money(f.amount)}</span>
-                </div>
-                <p>{f.detail}</p>
-                {f.ruleVersion > 1 && <span className="tag">caught by a new rule</span>}
-              </div>
-            ))}
+            {findings.map((f, i) => <FindingCard key={i} f={f} onOpen={setReplayId} />)}
             {resolved.length > 0 && (
               <div className="resolved">
                 <button className="link" onClick={() => setShowResolved(!showResolved)}>
                   {showResolved ? 'Hide' : 'Show'} resolved ({resolved.length})
                 </button>
-                {showResolved && resolved.map((f, i) => (
-                  <div key={i} className="card finding done">
-                    <div className="fhead"><b>{f.title}</b><span className="mono amt">{money(f.amount)}</span></div>
-                    <p>{f.detail}</p>
-                    <span className="muted small">fixed in <span className="mono">{f.resolvedByFilename}</span></span>
-                  </div>
-                ))}
+                {showResolved && resolved.map((f, i) => <FindingCard key={i} f={f} done />)}
               </div>
             )}
           </div>
@@ -254,6 +239,35 @@ function Workspace() {
       {replayId && <Replay decisionId={replayId} onClose={() => setReplayId(null)} />}
       {scoreOpen && <Score rulebook={rulebook} onClose={() => setScoreOpen(false)} />}
     </>
+  )
+}
+
+function FindingCard({ f, done, onOpen }) {
+  const [open, setOpen] = useState(false)
+  const files = {}  // filename -> quotes, so one chip per document; hover shows the quotes
+  ;(f.evidence || []).forEach((e) => { (files[e.filename] = files[e.filename] || []).push(e.quote) })
+  const clickable = !done && f.decisionId
+  return (
+    <div className={'card finding' + (done ? ' done' : '') + (clickable ? ' click' : '')} onClick={() => clickable && onOpen(f.decisionId)}>
+      <div className="fhead">
+        <b>{f.title}</b>
+        <span className="mono amt">{money(f.amount)}</span>
+      </div>
+      <p className="summary muted">{f.summary}</p>
+      <button className="link" onClick={(e) => { e.stopPropagation(); setOpen(!open) }}>{open ? 'Hide evidence' : 'Show evidence'}</button>
+      {open && (
+        <div className="evidence" onClick={(e) => e.stopPropagation()}>
+          <ul className="points">{(f.points || []).map((p, i) => <li key={i}>{p}</li>)}</ul>
+          <div className="chips">
+            {Object.entries(files).map(([name, quotes]) => (
+              <span key={name} className="chip mono" title={quotes.map((q) => `“${q}”`).join('\n\n')}>{name}</span>
+            ))}
+          </div>
+        </div>
+      )}
+      {!done && f.ruleVersion > 1 && <div><span className="tag">caught by a new rule</span></div>}
+      {done && <div className="muted small">fixed in <span className="mono">{f.resolvedByFilename}</span></div>}
+    </div>
   )
 }
 

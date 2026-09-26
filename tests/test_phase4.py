@@ -159,7 +159,8 @@ class FilingAgent:
         if self.step == 2:
             results = {b["tool_use_id"]: json.loads(b["content"]) for b in kw["messages"][-1]["content"]}
             return reply([use("upsert_finding", {
-                "type": t, "title": f"{t} finding", "detail": "Filed by the scripted agent.",
+                "type": t, "title": f"{t} finding", "summary": "Filed by the scripted agent.",
+                "points": ["Policy: Scripted point one.", "On file: Scripted point two."],
                 "calcId": results[f"c_{t}"].get("calcId", "calc_missing"), "evidence": [CALC[t][2]]}, f"f_{t}")
                 for t in self.types])
         return reply([say("Done.")], "end_turn")

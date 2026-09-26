@@ -80,7 +80,8 @@ def findings(claim_id: str, resolved: bool = False) -> list:
         if f["runId"] not in versions:
             run = _coll("agent_runs").find_one({"runId": f["runId"]}, {"rulebookVersion": 1})
             versions[f["runId"]] = (run or {}).get("rulebookVersion")
-        out.append({"type": f["type"], "title": f["title"], "detail": f["detail"], "amount": f["amount"],
+        out.append({"type": f["type"], "title": f["title"], "summary": f.get("summary") or f.get("detail", ""),
+                    "points": f.get("points", []), "amount": f["amount"],
                     "evidence": [{"filename": e["filename"], "quote": e["quote"]} for e in f["evidence"]],
                     "decisionId": f.get("decisionId"), "ruleVersion": versions[f["runId"]],
                     **({"resolvedAt": _iso(f.get("resolvedAt")), "resolvedByFilename": f.get("resolvedByFilename")}

@@ -115,6 +115,19 @@ def _walk_numbers(obj):
             yield from _walk_numbers(v)
 
 
+_JARGON = {"ALE": "living expenses", "ACV": "actual cash value", "RCV": "replacement cost",
+           "O&L": "code-upgrade coverage"}
+_JARGON_RE = re.compile(r"\b(" + "|".join(re.escape(k) for k in _JARGON) + r")\b")
+
+
+def _check_plain_english(*texts):
+    """Findings are read by policyholders: no insurance acronyms in the text the model writes."""
+    for text in texts:
+        m = _JARGON_RE.search(text or "")
+        if m:
+            raise ToolError(f"avoid jargon: write '{_JARGON[m.group(1)]}' instead of '{m.group(1)}'")
+
+
 def _check_money_in_prose(ctx, calc, *texts):
     """Every dollar figure the model writes must be the calc's amount, a number in the calc,
     or a number that appears in this claim's documents. Invented figures are rejected."""
@@ -125,7 +138,7 @@ def _check_money_in_prose(ctx, calc, *texts):
         for m in _MONEY_RE.finditer(text or ""):
             figure = Decimal(m.group(1).replace(",", "") + (m.group(2) or ""))
             if figure not in allowed:
-                raise ToolError(f"the dollar figure {m.group(0).strip()} in title/detail is not the "
+                raise ToolError(f"the dollar figure {m.group(0).strip()} in the finding text is not the "
                                 f"calculated amount or a number from the claim documents; "
                                 f"refer to the amount as {calc['amount']:,.2f} or omit figures")
 
@@ -423,7 +436,7 @@ def _decision_that_missed(claim_id):
     return None
 
 
-def upsert_finding(ctx, type, title, detail, calcId, evidence, decisionId=None):
+def upsert_finding(ctx, type, title, summary, points, calcId, evidence, decisionId=None):
     _require_run(ctx)
     if type not in _authorized_types(ctx):
         raise ToolError(f"no active rule authorizes {type} findings")
@@ -440,7 +453,8 @@ def upsert_finding(ctx, type, title, detail, calcId, evidence, decisionId=None):
     if calc["amountCents"] <= 0:
         raise ToolError(f"calc {calcId} computed {calc['amount']}: there is nothing to report; "
                         f"do not create a finding for a zero amount")
-    _check_money_in_prose(ctx, calc, title, detail)
+    _check_plain_english(title, summary, *points)
+    _check_money_in_prose(ctx, calc, title, summary, *points)
     if not evidence:
         raise ToolError("evidence must contain at least one {filename, quote}")
     for ev in evidence:
@@ -453,13 +467,14 @@ def upsert_finding(ctx, type, title, detail, calcId, evidence, decisionId=None):
         decisionId = _decision_that_missed(ctx.claimId)
     finding_id = f"finding_{ctx.claimId}_{type}"
     doc = db.prepare_doc("findings", {
-        "claimId": ctx.claimId, "runId": ctx.runId, "type": type, "title": title, "detail": detail,
+        "claimId": ctx.claimId, "runId": ctx.runId, "type": type, "title": title, "summary": summary,
+        "points": list(points),
         "calcId": calcId, "rule": calc["rule"], "amount": calc["amount"],  # always from the calc
         "amountCents": calc["amountCents"], "evidence": evidence, "decisionId": decisionId,
         "status": "open", "updatedAt": _now()})
     res = _coll("findings").update_one(  # a resolved finding whose amount came back is open again
         {"_id": finding_id}, {"$set": doc, "$setOnInsert": {"createdAt": _now()},
-                              "$unset": {"resolvedAt": "", "resolvedByFilename": "", "resolution": ""}},
+                              "$unset": {"resolvedAt": "", "resolvedByFilename": "", "resolution": "", "detail": ""}},
         upsert=True)
     return {"findingId": finding_id, "status": "created" if res.upserted_id is not None else "updated",
             "amount": calc["amount"]}
@@ -516,6 +531,9 @@ def _obj(properties=None, required=()):
 _STR = {"type": "string", "minLength": 1, "maxLength": 200}
 _TEXT = {"type": "string", "minLength": 1, "maxLength": 2000}
 _QUERY = {"type": "string", "minLength": 1, "maxLength": 500}
+_TITLE = {"type": "string", "minLength": 1, "maxLength": 70}
+_SUMMARY = {"type": "string", "minLength": 1, "maxLength": 140}
+_POINT = {"type": "string", "maxLength": 110, "pattern": r"^(Policy|On file|Insurer): \S"}
 _ASOF = {"type": "string", "description": "ISO-8601 datetime with UTC offset, e.g. 2026-07-18T00:00:00-05:00"}
 
 
@@ -562,13 +580,16 @@ TOOLS = [
          _obj({"type": {"type": "string", "enum": list(FINDING_TYPES)}, "calcId": _STR, "reason": _TEXT},
               ["type", "calcId", "reason"]), resolve_finding),
     Tool("upsert_finding", "Create or update the finding of this type. The amount is taken from the "
-         "calculation; you cannot set it. Every evidence quote must be verbatim.",
-         _obj({"type": {"type": "string", "enum": list(FINDING_TYPES)}, "title": _STR, "detail": _TEXT,
+         "calculation; you cannot set it. Every evidence quote must be verbatim. Write for the policyholder in "
+         "plain English: title (max 70 chars) says what they lost; summary is one sentence (max 140); points are "
+         "2-4 short bullets (max 110 each), each starting with \"Policy:\", \"On file:\" or \"Insurer:\".",
+         _obj({"type": {"type": "string", "enum": list(FINDING_TYPES)}, "title": _TITLE, "summary": _SUMMARY,
+               "points": {"type": "array", "minItems": 2, "maxItems": 4, "items": _POINT},
                "calcId": _STR,
                "evidence": {"type": "array", "minItems": 1, "maxItems": 20,
                             "items": _obj({"filename": _STR, "quote": _TEXT}, ["filename", "quote"])},
                "decisionId": _STR},
-              ["type", "title", "detail", "calcId", "evidence"]), upsert_finding),
+              ["type", "title", "summary", "points", "calcId", "evidence"]), upsert_finding),
 ]
 _BY_NAME = {t.name: t for t in TOOLS}
 

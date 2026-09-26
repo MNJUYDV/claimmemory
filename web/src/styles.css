@@ -60,3 +60,11 @@ input[type=email],input[type=password] { padding:9px 10px; border:1px solid var(
 @media (max-width:900px) { .grid { grid-template-columns:1fr; } }
 .rname { font-size:12px; text-transform:capitalize; margin-bottom:2px; }
 .resolved { margin-top:8px; } .finding.done { opacity:.6; background:#FAF9F6; } .finding.done .amt { color:var(--muted); text-decoration:line-through; }
+
+/* finding card: readable line length, evidence collapsed by default */
+.finding p.summary { margin:4px 0 8px; max-width:760px; }
+.finding .link { margin-bottom:2px; }
+.evidence { margin:8px 0 4px; max-width:760px; }
+.points { margin:0 0 10px; padding-left:18px; font-size:14px; line-height:1.5; }
+.chips { display:flex; flex-wrap:wrap; gap:6px; }
+.chip { font-size:12px; background:#F1F0EC; border:1px solid var(--line); border-radius:999px; padding:2px 9px; cursor:help; }

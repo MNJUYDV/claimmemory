@@ -33,6 +33,7 @@ integ = pytest.mark.integration
 DATA = dataparse.DATA_DIR
 LABELS = json.loads((DATA / "labels.json").read_text())
 MARIA, PARK = "HO-48213", "PK-20719"
+POINTS = ["Policy: Labor is not subject to depreciation.", "On file: The estimate depreciates labor."]
 V1_AT, V2_AT = "2026-06-10T00:00:00-05:00", "2026-07-18T00:00:00-05:00"
 
 
@@ -125,7 +126,7 @@ def test_tool_schemas_valid_and_closed():  # T2.1
 
 def test_extra_amount_field_rejected_by_schema():  # T2.12 (schema half)
     ctx = ToolContext("X", "run_x")
-    args = {"type": "labor_depreciation", "title": "t", "detail": "d", "calcId": "calc_x",
+    args = {"type": "labor_depreciation", "title": "t", "summary": "s", "points": POINTS, "calcId": "calc_x",
             "evidence": [{"filename": "f", "quote": "q"}], "amount": 999}
     r = call_tool(ctx, "upsert_finding", args)
     assert "error" in r and "amount" in r["error"]
@@ -379,7 +380,8 @@ def test_compute_amount_errors_are_json(maria):
 # ---------- integration: findings ----------
 
 def _finding_args(calc_id, ftype="labor_depreciation", **over):
-    args = {"type": ftype, "title": "Labor depreciated", "detail": "Estimate depreciates labor.",
+    args = {"type": ftype, "title": "Labor depreciated", "summary": "Estimate depreciates labor.",
+            "points": POINTS,
             "calcId": calc_id, "evidence": [{"filename": "policy.txt",
                                              "quote": "Labor is not subject to depreciation."}]}
     return args | over

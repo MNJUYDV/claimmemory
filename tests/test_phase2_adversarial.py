@@ -10,7 +10,7 @@ from tools import TOOLS, ToolContext, call_tool
 
 # Reuse the fixtures and helpers from the main tools tests.
 from tests.test_phase2_tools import (  # noqa: F401
-    DATA, MARIA, PARK, V2_AT, _compute_all, _finding_args, _poll, _v2_decision, fake_embed, fake_vec,
+    DATA, POINTS, MARIA, PARK, V2_AT, _compute_all, _finding_args, _poll, _v2_decision, fake_embed, fake_vec,
     integ, maria, maria_plain, ok, park, seeded)
 
 REAL = "Labor is not subject to depreciation."
@@ -78,15 +78,15 @@ def test_filename_path_traversal_is_just_an_unknown_document(maria):
 @pytest.mark.parametrize("extra", [{"amount": "11300"}, {"amount": 1}, {"amount": 11300.0},
                                    {"amountCents": 1130000}, {"claimId": "PK-20719"}, {"runId": "r"}])
 def test_amount_like_fields_rejected_by_schema(extra):
-    args = {"type": "labor_depreciation", "title": "t", "detail": "d", "calcId": "calc_x",
+    args = {"type": "labor_depreciation", "title": "t", "summary": "s", "points": POINTS, "calcId": "calc_x",
             "evidence": [{"filename": "policy.txt", "quote": REAL}]} | extra
     assert "Additional properties" in call_tool(FORGED, "upsert_finding", args)["error"]
 
 
 def test_amount_nested_in_evidence_and_compute_inputs_rejected():
     ev = [{"filename": "policy.txt", "quote": REAL, "amount": 5}]
-    r = call_tool(FORGED, "upsert_finding", {"type": "unpaid_ale", "title": "t", "detail": "d",
-                                             "calcId": "c", "evidence": ev})
+    r = call_tool(FORGED, "upsert_finding", {"type": "unpaid_ale", "title": "t", "summary": "s",
+                                             "points": POINTS, "calcId": "c", "evidence": ev})
     assert "Additional properties" in r["error"]
     for inputs in ({"amount": "99"}, {"promise": 5}, {"promise": ["a"]}, {"promise": {"$ne": 1}}):
         assert "error" in call_tool(FORGED, "compute_amount", {"rule": "unpaid_ale", "inputs": inputs})
@@ -94,11 +94,12 @@ def test_amount_nested_in_evidence_and_compute_inputs_rejected():
 
 @integ
 @pytest.mark.parametrize("field,text", [
-    ("detail", "Harborline owes $50,000 in refunds."),
+    ("summary", "Harborline owes $50,000 in refunds."),
     ("title", "Labor depreciation of $1,000,000"),
-    ("detail", "Refund of USD 20,000 is due."),
-    ("detail", "About $11,300.50 was withheld."),   # close to the real amount, but not it
-    ("detail", "Roughly $11.3k was withheld."),
+    ("summary", "Refund of USD 20,000 is due."),
+    ("summary", "About $11,300.50 was withheld."),   # close to the real amount, but not it
+    ("summary", "Roughly $11.3k was withheld."),
+    ("points", ["Policy: Labor is not subject to depreciation.", "Insurer: It withheld an extra $99,999."]),
 ])
 def test_invented_dollar_figures_in_prose_rejected(maria, field, text):
     calc = _compute_all(maria)["labor_depreciation"]["calcId"]
@@ -109,8 +110,8 @@ def test_invented_dollar_figures_in_prose_rejected(maria, field, text):
 @integ
 def test_real_dollar_figures_in_prose_allowed(maria):
     calc = _compute_all(maria)["labor_depreciation"]["calcId"]
-    detail = "Labor depreciation totals $11,300 across 41 lines; the estimate total is $61,200.00."
-    ok(call_tool(maria, "upsert_finding", _finding_args(calc, detail=detail)))
+    summary = "Labor depreciation totals $11,300 across 41 lines; the estimate total is $61,200.00."
+    ok(call_tool(maria, "upsert_finding", _finding_args(calc, summary=summary)))
 
 
 @integ
@@ -138,10 +139,10 @@ def test_wrong_documents_for_a_rule_are_json_errors(maria):
 
 
 def test_oversized_and_empty_strings_rejected_by_schema():
-    base = {"type": "unpaid_ale", "title": "t", "detail": "d", "calcId": "c",
+    base = {"type": "unpaid_ale", "title": "t", "summary": "s", "points": POINTS, "calcId": "c",
             "evidence": [{"filename": "policy.txt", "quote": REAL}]}
     assert "error" in call_tool(FORGED, "upsert_finding", base | {"title": "x" * 1_000_000})
-    assert "error" in call_tool(FORGED, "upsert_finding", base | {"detail": "x" * 1_000_000})
+    assert "error" in call_tool(FORGED, "upsert_finding", base | {"summary": "x" * 1_000_000})
     assert "error" in call_tool(FORGED, "upsert_finding", base | {"evidence": [{"filename": "f", "quote": "q" * 5000}]})
     assert "error" in call_tool(FORGED, "search_policy", {"query": "", "asOf": V2_AT})
     assert "error" in call_tool(FORGED, "search_policy", {"query": "x" * 10_000, "asOf": V2_AT})
@@ -279,3 +280,58 @@ def test_search_policy_never_returns_another_claims_clauses(seeded, fake_embed, 
     mine = _poll(lambda: call_tool(m, "search_policy", q), lambda r: r.get("results"))
     assert ok(mine)["results"], "Maria's clauses should be searchable once the index catches up"
     assert ok(call_tool(p, "search_policy", q))["results"] == []
+
+
+# ---------- readable findings: title / summary / points ----------
+
+def _args(**over):
+    base = {"type": "unpaid_ale", "title": "Living expenses stopped early", "summary": "One clear sentence.",
+            "points": ["Policy: One.", "On file: Two."], "calcId": "c",
+            "evidence": [{"filename": "policy.txt", "quote": REAL}]}
+    return base | over
+
+
+@pytest.mark.parametrize("over", [
+    {"title": "x" * 71}, {"summary": "x" * 141}, {"points": ["Policy: only one point."]},
+    {"points": ["Policy: a."] * 5}, {"points": ["Policy: fine.", "Notes: wrong prefix."]},
+    {"points": ["Policy: fine.", "on file: lower-case prefix."]}, {"points": ["Policy: fine.", "On file: " + "x" * 110]},
+    {"points": ["Policy: fine.", "Insurer:"]}, {"detail": "the old free-text field"},
+])
+def test_finding_format_limits_enforced_by_schema(over):
+    assert "error" in call_tool(FORGED, "upsert_finding", _args(**over))
+
+
+def test_finding_format_limits_accept_the_boundaries():
+    from jsonschema import Draft202012Validator
+    schema = next(t for t in TOOLS if t.name == "upsert_finding").input_schema
+    Draft202012Validator(schema).validate(_args(title="t" * 70, summary="s" * 140, points=[
+        "Policy: " + "p" * 102, "On file: " + "o" * 101, "Insurer: x", "Policy: y"]))
+
+
+@integ
+@pytest.mark.parametrize("field,value", [
+    ("title", "ALE cut off early"), ("summary", "Your ALE stopped after month 6."),
+    ("points", ["Policy: Fine.", "Insurer: The ALE notice ended payments."]),
+])
+def test_jargon_acronyms_rejected(maria, field, value):
+    calc = _compute_all(maria)["unpaid_ale"]["calcId"]
+    r = call_tool(maria, "upsert_finding", _finding_args(
+        calc, "unpaid_ale", evidence=[{"filename": "ale_notice.txt", "quote": "ALE payments end after month 6"}],
+        **{field: value}))
+    assert "avoid jargon" in r["error"] and "living expenses" in r["error"]
+    assert db.findings.count_documents({}) == 0
+
+
+@integ
+def test_finding_is_stored_and_served_in_the_new_shape(maria):
+    calc = _compute_all(maria)["unpaid_ale"]["calcId"]
+    ev = [{"filename": "ale_notice.txt", "quote": "ALE payments end after month 6"}]
+    ok(call_tool(maria, "upsert_finding", _finding_args(
+        calc, "unpaid_ale", title="Living expenses stopped six months early", evidence=ev)))
+    stored = db.findings.find_one({})
+    assert stored["summary"] and stored["points"] == POINTS and "detail" not in stored
+    from fastapi.testclient import TestClient
+    from main import app
+    f = TestClient(app).get(f"/api/claims/{MARIA}/workspace").json()["findings"][0]
+    assert set(f) == {"type", "title", "summary", "points", "amount", "evidence", "decisionId", "ruleVersion"}
+    assert f["points"] == POINTS and f["evidence"][0]["filename"] == "ale_notice.txt"

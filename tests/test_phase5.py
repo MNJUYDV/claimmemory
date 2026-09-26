@@ -261,7 +261,8 @@ def build_maria_state(ctx):
             ("unpaid_ale", {"promise": "adjuster_email_1.txt", "notice": "ale_notice.txt"}, "unpaid_ale",
              [{"filename": "ale_notice.txt", "quote": "ALE payments end after month 6"}])):
         calc = ok(call_tool(ctx, "compute_amount", {"rule": rule, "inputs": inputs}))
-        ok(call_tool(ctx, "upsert_finding", {"type": ftype, "title": f"{ftype} finding", "detail": "d",
+        ok(call_tool(ctx, "upsert_finding", {"type": ftype, "title": f"{ftype} finding", "summary": "s",
+                                             "points": ["Policy: p1 text.", "On file: p2 text."],
                                              "calcId": calc["calcId"], "evidence": evidence, "decisionId": dec}))
     return dec
 
@@ -288,7 +289,7 @@ def test_workspace_totals_rows_findings_and_no_label_data(maria_plain):  # T5.9
     assert est[0]["validTo"] == est[1]["validFrom"] and est[1]["validTo"] is None  # v2 is open-ended
     assert {f["type"]: f["amount"] for f in ws["findings"]} == {"missing_coverage": 18700, "unpaid_ale": 8400}
     f = ws["findings"][0]
-    assert set(f) == {"type", "title", "detail", "amount", "evidence", "decisionId", "ruleVersion"}
+    assert set(f) == {"type", "title", "summary", "points", "amount", "evidence", "decisionId", "ruleVersion"}
     assert f["ruleVersion"] == 1 and f["decisionId"].startswith("dec_") and f["evidence"][0]["quote"]
     assert ws["latestRun"]["id"] == maria_plain.runId and ws["latestRun"]["rulebookVersion"] == 1
     # no label data: never touched labels/scores, and nothing label-shaped in the payload
