@@ -18,13 +18,17 @@ class ClaimRunner:
     """Runs reviews in background threads, serialised per claim, with a single queued follow-up."""
 
     def __init__(self, run_fn=None):
-        self.run_fn = run_fn or (lambda claim_id: agent.run_agent(claim_id))
+        self.run_fn = run_fn or (lambda claim_id, triggered=None: agent.run_agent(claim_id, triggered=triggered))
+        self._triggers = {}  # claim -> documents that arrived since the next run was decided
         self._lock = threading.Lock()
         self._state = {}  # claim -> {"running": bool, "pending": bool}
         self._idle = threading.Condition(self._lock)
 
-    def trigger(self, claim_id: str) -> str:
+    def trigger(self, claim_id: str, document: dict = None) -> str:
+        """Start (or queue) a review. `document` is the arrival that caused it: {filename, receivedAt}."""
         with self._lock:
+            if document:
+                self._triggers.setdefault(claim_id, []).append(document)
             st = self._state.setdefault(claim_id, {"running": False, "pending": False})
             if st["running"]:
                 st["pending"] = True  # any number of arrivals during a run collapse into one follow-up
@@ -35,8 +39,10 @@ class ClaimRunner:
 
     def _work(self, claim_id: str) -> None:
         while True:
+            with self._lock:
+                triggered = self._triggers.pop(claim_id, [])
             try:
-                self.run_fn(claim_id)
+                self.run_fn(claim_id, triggered=triggered) if triggered else self.run_fn(claim_id)
             except Exception:
                 log.exception("review of %s crashed", claim_id)
             with self._lock:
@@ -69,7 +75,7 @@ def handle_insert(doc: dict, runner: ClaimRunner) -> str:
         return "ignored"
     if already_reviewed(doc["claimId"], doc["filename"]):
         return "reviewed"
-    return runner.trigger(doc["claimId"])
+    return runner.trigger(doc["claimId"], {"filename": doc["filename"], "receivedAt": doc.get("receivedAt")})
 
 
 class Listener:

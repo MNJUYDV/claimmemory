@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { USE_SAMPLE_DATA, CLAIM_ID } from './config.js'
 import { useWorkspace } from './useWorkspace.js'
 import { fetchReplay, uploadDocument } from './api.js'
@@ -146,16 +146,14 @@ function layoutTimeline(items) {
 }
 
 function Timeline({ items }) {
-  const scroller = useRef(null)
   const lay = layoutTimeline(items)
-  useEffect(() => { if (scroller.current) scroller.current.scrollLeft = scroller.current.scrollWidth }, [items.length])
   if (!lay) return <div className="card"><h3>Timeline</h3><p className="muted">No dated facts yet</p></div>
   const est = items.filter((i) => i.row.startsWith('estimate') && !i.superseded && /estimate|v\d/i.test(i.label))
   const newest = est.sort((a, b) => Date.parse(b.validFrom) - Date.parse(a.validFrom))[0]
   return (
     <div className="card tl">
       <h3>Timeline</h3>
-      <div className="tl-scroll" ref={scroller}>
+      <div className="tl-scroll">
         <div style={{ width: LABEL_W + lay.width }}>
           <div className="tl-row">
             <div className="tl-label" />

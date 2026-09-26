@@ -187,7 +187,10 @@ def get_claim_state(ctx):
         cat["payments"].append({"paidAt": p["paidAt"], "amount": p["amount"], "memo": p.get("memo")})
     findings = _coll("findings").find({"claimId": ctx.claimId, "status": "open"})
     resolved = _coll("findings").find({"claimId": ctx.claimId, "status": "resolved"})
-    docs = _coll("documents").find({"claimId": ctx.claimId}).sort("receivedAt", 1)
+    docs = list(_coll("documents").find({"claimId": ctx.claimId}).sort("receivedAt", 1))
+    prev = _coll("agent_runs").find_one({"claimId": ctx.claimId, "status": "completed",
+                                         "runId": {"$ne": ctx.runId}}, sort=[("startedAt", -1)])
+    since = prev["startedAt"] if prev else None  # a run reviews what was on file when it started
     return _jsonable({
         "claim": {k: claim[k] for k in ("claimId", "insurer", "insuredName", "propertyAddress",
                                         "policyNumber", "lossType", "lossDate", "status")},
@@ -197,6 +200,8 @@ def get_claim_state(ctx):
                              for f in resolved],
         "documents": [{"filename": d["filename"], "type": d["type"], "receivedAt": d["receivedAt"]}
                       for d in docs],
+        "newSinceLastRun": [{"filename": d["filename"], "type": d["type"], "receivedAt": d["receivedAt"]}
+                            for d in docs if since is None or d["receivedAt"] > since],
     })
 
 

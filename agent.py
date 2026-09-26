@@ -31,7 +31,7 @@ SYSTEM_PROMPT = """You work for the policyholder's public adjuster. You review a
 
 Work in this order:
 1. Call get_claim_state, then get_rules. The rulebook lists the only finding types you may file.
-2. Read every document with read_document. Line numbers are display only: never include them in a quote.
+2. Read documents with read_document. Line numbers are display only: never include them in a quote. get_claim_state lists newSinceLastRun, the documents received after the previous completed run (every document, on a first review). If the first message names a "New document", this run was triggered by an upload: read only the new document(s), use get_claim_state and search_policy for everything else, and open an older document only when a specific rule needs it (for example a rule's computeRule needs the bid or the promise, or you need a verbatim quote from it). On a first review with no new-document line, read every document.
 3. Record facts (record_fact) for the timeline, and only these four rows: "policy" (only the policy terms that matter to a finding, such as the labor-depreciation clause, the ALE limit, the ordinance-or-law endorsement), "estimates" (one fact per estimate version, quoting its "Total:" line, validFrom set to that estimate's receivedAt from list_documents), "promises" (each promise made to the policyholder), and "living_expenses" (ALE payments and cutoffs, including each ALE notice). Do not record facts for subtotals, line items, bids, or procedural rules. Every label is short plain English, at most 40 characters, with no jargon: "Living expenses promised to month 12", not "ALE through month 12"; "Estimate v2 written", not "Estimate v2 total". When a newer estimate or ALE notice arrives, supersede the older one's fact with supersede_fact (re-record the older facts first if you need their ids: recording an identical fact again is harmless). Copy timestamps exactly, including their UTC offset.
 4. Record a decision (record_decision) for each estimate: its filename, madeAt set to its receivedAt, and citedFilenames set to exactly the documents in its "Relied on" header.
 5. Use replay on each decision to see which documents the insurer had already received but did not cite.
@@ -181,8 +181,16 @@ def held_filenames(claim_id: str) -> list:
     return [e["filename"] for e in entries if e["claimId"] == claim_id and e.get("hold")]
 
 
+def _new_document_lines(triggered) -> str:
+    """'New document: <filename>, received <date>.' for each document that triggered this run."""
+    def when(v):
+        return v.isoformat(timespec="seconds") if hasattr(v, "isoformat") else str(v)
+    return "\n".join(f"New document: {d['filename']}, received {when(d.get('receivedAt'))}." for d in triggered or [])
+
+
 def run_agent(claim_id: str, task: str = "review_claim", *, max_steps: int = MAX_STEPS,
-              client=None, model: str = None, after_step=None, rulebook_version: int = None) -> RunResult:
+              client=None, model: str = None, after_step=None, rulebook_version: int = None,
+              triggered=None) -> RunResult:
     """Ingest the claim's documents (skipping held ones), then run the tool-use loop to completion.
 
     The run reads the rulebook version active at start (or rulebook_version, for a candidate re-run)
@@ -196,8 +204,9 @@ def run_agent(claim_id: str, task: str = "review_claim", *, max_steps: int = MAX
     _set(ctx, documentFilenames=[d["filename"] for d in db.get_collection("documents").find(
         {"claimId": claim_id}, {"filename": 1})])  # what this run reviews (the listener skips these)
     _set(ctx, task=task, model=model or config.CLAUDE_MODEL,
-         messages=[{"role": "user", "content": f"Review this claim ({task}) and file any findings the "
-                                               f"rulebook allows."}])
+         messages=[{"role": "user", "content": "\n".join(filter(None, [
+             f"Review this claim ({task}) and file any findings the rulebook allows.",
+             _new_document_lines(triggered)]))}])
     _emit(ctx, "run_started", task=task)
     return _drive(ctx, _client(client), model or config.CLAUDE_MODEL, max_steps, after_step)
 
